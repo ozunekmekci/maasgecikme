@@ -1,23 +1,22 @@
 import { SeveranceClaim, AnnualLeaveClaim, CompensationItem } from '../types/payroll';
+import { parseDateUTC } from './interestCalculator';
 
 /**
  * Calculates tenure in years and days between two dates.
  */
 export function calculateTenure(startDateStr: string, endDateStr: string): { years: number; days: number; totalDays: number } {
   if (!startDateStr || !endDateStr) return { years: 0, days: 0, totalDays: 0 };
-  const start = new Date(startDateStr);
-  const end = new Date(endDateStr);
+  const start = parseDateUTC(startDateStr);
+  const end = parseDateUTC(endDateStr);
   
   if (end < start) return { years: 0, days: 0, totalDays: 0 };
 
-  let years = end.getFullYear() - start.getFullYear();
-  let tempDate = new Date(start);
-  tempDate.setFullYear(start.getFullYear() + years);
+  let years = end.getUTCFullYear() - start.getUTCFullYear();
+  let tempDate = new Date(Date.UTC(start.getUTCFullYear() + years, start.getUTCMonth(), start.getUTCDate()));
 
   if (tempDate > end) {
     years--;
-    tempDate = new Date(start);
-    tempDate.setFullYear(start.getFullYear() + years);
+    tempDate = new Date(Date.UTC(start.getUTCFullYear() + years, start.getUTCMonth(), start.getUTCDate()));
   }
 
   const diffTime = end.getTime() - tempDate.getTime();

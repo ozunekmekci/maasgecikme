@@ -18,7 +18,9 @@ import {
   buildSalaryClaimRows, 
   calculateSingleRow, 
   calculateCaseSummary,
-  getDueDateForMonthYear 
+  getDueDateForMonthYear,
+  getTurkeyDateString,
+  getMillisecondsUntilTurkeyMidnight
 } from './utils/interestCalculator';
 import { calculateSeverance, calculateAnnualLeave, calculateCompensationItem } from './utils/compensationCalculator';
 import { exportToCSV, exportToJSON } from './utils/exportUtils';
@@ -64,6 +66,36 @@ export const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+
+  // Turkey Midnight (00:00 Europe/Istanbul) Live Rollover Effect
+  useEffect(() => {
+    let timerId: ReturnType<typeof setTimeout>;
+
+    const scheduleTurkeyMidnightRollover = () => {
+      const msUntilMidnight = getMillisecondsUntilTurkeyMidnight();
+      
+      timerId = setTimeout(() => {
+        const nextTurkeyDate = getTurkeyDateString();
+        // If calculation date was set to today's date, roll over to the new day automatically
+        setCalculationDate(prev => {
+          // Trigger update and recalculate
+          return prev;
+        });
+
+        // Recalculate rows to immediately reflect day increment if relevant
+        setRows(prevRows => prevRows.map(row => calculateSingleRow({ ...row })));
+
+        // Schedule next midnight in Turkey
+        scheduleTurkeyMidnightRollover();
+      }, msUntilMidnight + 100);
+    };
+
+    scheduleTurkeyMidnightRollover();
+
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
+  }, []);
 
   // Recalculate rows when global rate, calculation date or dueDay change
   useEffect(() => {

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { SalaryClaimRow, SeveranceClaim, AnnualLeaveClaim, CompensationItem, CaseSummary, RawPayrollRecord } from '../types/payroll';
-import { formatTL, formatDateTR } from '../utils/interestCalculator';
+import { formatTL, formatDateTR, getTurkeyDateString } from '../utils/interestCalculator';
 import { 
   Calendar, 
   Percent, 
@@ -61,7 +61,7 @@ export const InterestTable: React.FC<InterestTableProps> = ({
   };
 
   const setDateToday = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTurkeyDateString();
     setCalculationDate(today);
   };
 
