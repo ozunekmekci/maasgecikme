@@ -1,7 +1,7 @@
 import React from 'react';
 import { SalaryClaimRow, SeveranceClaim, AnnualLeaveClaim, CompensationItem, CaseSummary, RawPayrollRecord } from '../types/payroll';
 import { formatTL, formatDateTR } from '../utils/interestCalculator';
-import { Printer, Download, Scale, CheckCircle } from 'lucide-react';
+import { Scale, CheckCircle } from 'lucide-react';
 
 interface CourtReportViewProps {
   rows: SalaryClaimRow[];
@@ -24,36 +24,24 @@ export const CourtReportView: React.FC<CourtReportViewProps> = ({
   globalInterestRate,
   rawRecord
 }) => {
-  const handlePrint = () => {
-    window.print();
-  };
-
   const employeeName = rawRecord?.employeeName || '[GİZLİ DAVACI / İŞÇİ]';
   const companyName = rawRecord?.companyName || '[GİZLİ DAVALI İŞVEREN A.Ş.]';
   const jobTitle = rawRecord?.jobTitle || 'BİYOMEDİKAL MÜHENDİSİ';
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-4xl mx-auto font-sans">
       
-      {/* Action Bar (Hidden on print) */}
-      <div className="no-print bg-white dark:bg-slate-900 rounded-xl p-3.5 sm:p-4 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      {/* Header Info Banner */}
+      <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-300 dark:border-slate-700 shadow-sm flex items-center justify-between">
         <div>
-          <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2">
-            <Scale className="w-4 h-4 text-sky-500 shrink-0" />
-            <span>Resmi Bilirkişi / Arabuluculuk Alacak & Faiz Hesap Raporu</span>
+          <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center space-x-2 font-serif uppercase tracking-wide">
+            <Scale className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span>RESMİ BİLİRKİŞİ / ARABULUCULUK ALACAK & FAİZ HESAP RAPORU</span>
           </h3>
-          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400">
-            Mahkemeye veya arabulucuya sunulabilecek A4 formatında hazır resmi döküm.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            İş Mahkemesi ve Arabuluculuk dökümü standartlarında resmi metin.
           </p>
         </div>
-
-        <button
-          onClick={handlePrint}
-          className="flex items-center justify-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition shrink-0"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Yazdır / PDF Kaydet</span>
-        </button>
       </div>
 
       {/* Printable Report Page */}

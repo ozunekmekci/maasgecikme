@@ -2,25 +2,20 @@ import React from 'react';
 import { 
   Scale, 
   Table, 
-  Layers, 
   BarChart3, 
   FileText, 
   Sun, 
   Moon, 
-  FileSpreadsheet, 
   RotateCcw,
-  UploadCloud,
-  Printer
+  Receipt
 } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'interest' | 'compensation' | 'analytics' | 'report';
-  setActiveTab: (tab: 'interest' | 'compensation' | 'analytics' | 'report') => void;
+  activeTab: 'interest' | 'court_costs' | 'analytics' | 'report';
+  setActiveTab: (tab: 'interest' | 'court_costs' | 'analytics' | 'report') => void;
   darkMode: boolean;
   setDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
   onResetToDefaults: () => void;
-  onExportCSV: () => void;
-  onOpenUploader: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -28,9 +23,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   darkMode,
   setDarkMode,
-  onResetToDefaults,
-  onExportCSV,
-  onOpenUploader
+  onResetToDefaults
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-300 dark:border-slate-800 transition-colors shadow-sm font-sans">
@@ -52,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate max-w-xs">
-                Maaş Gecikme Faizi & Dava İcmali
+                Maaş Gecikme Faizi, Harç & Dava İcmali
               </p>
             </div>
           </div>
@@ -68,19 +61,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <Table className="w-3.5 h-3.5" />
-              <span>Faiz Tablosu</span>
+              <span>Faiz & Alacak Tablosu</span>
             </button>
 
             <button
-              onClick={() => setActiveTab('compensation')}
+              onClick={() => setActiveTab('court_costs')}
               className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap ${
-                activeTab === 'compensation'
+                activeTab === 'court_costs'
                   ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-slate-700'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Tazminatlar</span>
+              <Receipt className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+              <span>Dava Harç & Masrafları</span>
             </button>
 
             <button
@@ -92,7 +85,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              <span>Bordro Analiz</span>
+              <span>Gelişmiş Analiz</span>
             </button>
 
             <button
@@ -111,46 +104,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Action Tools */}
           <div className="flex items-center space-x-1.5 shrink-0">
             <button
-              onClick={onOpenUploader}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition"
-              title="Bordro PDF Yükle"
-            >
-              <UploadCloud className="w-3.5 h-3.5 text-sky-600" />
-              <span className="hidden md:inline">PDF Yükle</span>
-            </button>
-
-            <button
-              onClick={onExportCSV}
-              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded text-xs font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 transition"
-              title="Excel İndir"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="hidden md:inline">Excel</span>
-            </button>
-
-            <button
-              onClick={() => window.print()}
-              className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white border border-slate-700 transition"
-              title="Yazdır / PDF"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Yazdır</span>
-            </button>
-
-            <button
               onClick={onResetToDefaults}
-              className="p-1.5 rounded text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition"
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition flex items-center space-x-1 text-xs font-semibold"
               title="Varsayılana Sıfırla"
             >
               <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sıfırla</span>
             </button>
 
             <button
               onClick={() => setDarkMode(prev => !prev)}
-              className="p-1.5 rounded text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition"
+              className="p-2 rounded-lg text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition"
               title="Tema Değiştir"
             >
-              {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-slate-700" />}
+              {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-700" />}
             </button>
           </div>
 
@@ -165,17 +132,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <Table className="w-3.5 h-3.5" />
-            <span>Faiz Tablosu</span>
+            <span>Faiz & Alacak</span>
           </button>
 
           <button
-            onClick={() => setActiveTab('compensation')}
+            onClick={() => setActiveTab('court_costs')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition ${
-              activeTab === 'compensation' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              activeTab === 'court_costs' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Tazminatlar</span>
+            <Receipt className="w-3.5 h-3.5 text-rose-500" />
+            <span>Dava Harçları</span>
           </button>
 
           <button
@@ -185,7 +152,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <BarChart3 className="w-3.5 h-3.5" />
-            <span>Bordro Analiz</span>
+            <span>Analiz</span>
           </button>
 
           <button
@@ -195,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Bilirkişi Raporu</span>
+            <span>Rapor</span>
           </button>
         </div>
 

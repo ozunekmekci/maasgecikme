@@ -1,7 +1,19 @@
 import React, { useState } from 'react';
 import { SalaryClaimRow, CaseSummary, RawPayrollRecord } from '../types/payroll';
 import { formatTL } from '../utils/interestCalculator';
-import { BarChart, TrendingUp, PieChart, Layers, ArrowUpRight, DollarSign } from 'lucide-react';
+import { 
+  TrendingUp, 
+  PieChart, 
+  Layers, 
+  DollarSign, 
+  Percent, 
+  Calendar, 
+  Clock, 
+  ArrowUpRight, 
+  ShieldAlert, 
+  BarChart2,
+  Activity
+} from 'lucide-react';
 
 interface ChartsViewProps {
   rows: SalaryClaimRow[];
@@ -10,13 +22,9 @@ interface ChartsViewProps {
 }
 
 export const ChartsView: React.FC<ChartsViewProps> = ({ rows, summary, rawRecords }) => {
-  const [activeChart, setActiveChart] = useState<'claims' | 'salary_trend' | 'tax_breakdown'>('claims');
+  const [activeTab, setActiveTab] = useState<'overview' | 'tax_analysis' | 'interest_growth'>('overview');
 
-  // Max values for relative scaling
-  const maxNetSalary = Math.max(...rows.map(r => r.netSalary), 70000);
-  const maxClaim = Math.max(...rows.map(r => r.totalClaim), 85000);
-
-  // Claim category breakdown percentages
+  // Key Analytics Calculations
   const grandTotal = summary.grandTotalClaim || 1;
   const wagePrincipalPct = ((summary.totalWagePrincipalUnpaid / grandTotal) * 100).toFixed(1);
   const interestPct = ((summary.totalWageInterest / grandTotal) * 100).toFixed(1);
@@ -24,190 +32,241 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ rows, summary, rawRecord
   const leavePct = ((summary.totalLeaveNet / grandTotal) * 100).toFixed(1);
   const compPct = ((summary.totalOtherCompensations / grandTotal) * 100).toFixed(1);
 
+  // Interest Yield Ratio
+  const interestYield = summary.totalWagePrincipalUnpaid > 0
+    ? ((summary.totalWageInterest / summary.totalWagePrincipalUnpaid) * 100).toFixed(1)
+    : '0';
+
+  // Average delay days for unpaid rows
+  const unpaidRows = rows.filter(r => r.status === 'unpaid');
+  const avgDelay = unpaidRows.length > 0
+    ? Math.round(unpaidRows.reduce((sum, r) => sum + r.delayDays, 0) / unpaidRows.length)
+    : 0;
+
+  // Max interest month
+  const maxInterestRow = [...rows].sort((a, b) => b.accruedInterest - a.accruedInterest)[0];
+
+  // Max values for relative scaling
+  const maxNetSalary = Math.max(...rows.map(r => r.netSalary), 75000);
+  const maxTotalClaim = Math.max(...rows.map(r => r.totalClaim), 90000);
+  const maxIncomeTax = Math.max(...rawRecords.map(r => r.incomeTaxAmount), 15000);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       
-      {/* Chart Selector Tabs */}
-      <div className="flex items-center space-x-1.5 bg-white dark:bg-slate-900 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto max-w-full">
-        <button
-          onClick={() => setActiveChart('claims')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg text-xs font-bold transition-all shrink-0 whitespace-nowrap ${
-            activeChart === 'claims'
-              ? 'bg-sky-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <PieChart className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>Dava Kalemleri Dağılımı</span>
-        </button>
-
-        <button
-          onClick={() => setActiveChart('salary_trend')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg text-xs font-bold transition-all shrink-0 whitespace-nowrap ${
-            activeChart === 'salary_trend'
-              ? 'bg-sky-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>Aylık Faiz & Alacak Trendi</span>
-        </button>
-
-        <button
-          onClick={() => setActiveChart('tax_breakdown')}
-          className={`flex items-center space-x-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-lg text-xs font-bold transition-all shrink-0 whitespace-nowrap ${
-            activeChart === 'tax_breakdown'
-              ? 'bg-sky-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          <span>Vergi & SGK Kesinti Trendi</span>
-        </button>
-      </div>
-
-      {/* 1. DAVA KALEMLERİ DAĞILIMI */}
-      {activeChart === 'claims' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Progress Bars Breakdown */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center justify-between">
-              <span>Toplam Talep Portföyü Analizi</span>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
-                Genel Toplam: {formatTL(summary.grandTotalClaim)}
-              </span>
-            </h3>
-
-            {/* Stacked Progress Bar */}
-            <div className="h-6 w-full rounded-xl overflow-hidden flex bg-slate-100 dark:bg-slate-800 shadow-inner">
-              <div style={{ width: `${wagePrincipalPct}%` }} className="bg-amber-500 hover:opacity-90 transition" title={`Ödenmeyen Maaş: ${wagePrincipalPct}%`} />
-              <div style={{ width: `${interestPct}%` }} className="bg-rose-500 hover:opacity-90 transition" title={`İşleyen Faiz: ${interestPct}%`} />
-              <div style={{ width: `${severancePct}%` }} className="bg-indigo-600 hover:opacity-90 transition" title={`Kıdem Tazminatı: ${severancePct}%`} />
-              <div style={{ width: `${leavePct}%` }} className="bg-emerald-500 hover:opacity-90 transition" title={`Yıllık İzin: ${leavePct}%`} />
-              <div style={{ width: `${compPct}%` }} className="bg-purple-600 hover:opacity-90 transition" title={`Manevi Tazminat: ${compPct}%`} />
-            </div>
-
-            {/* Legend and Values */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2">
-              
-              <div className="p-3 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Ödenmeyen Maaşlar</span>
-                </div>
-                <div className="text-right font-bold text-amber-700 dark:text-amber-400">
-                  {formatTL(summary.totalWagePrincipalUnpaid)} ({wagePrincipalPct}%)
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-rose-500" />
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Gecikme Faizleri</span>
-                </div>
-                <div className="text-right font-bold text-rose-700 dark:text-rose-400">
-                  {formatTL(summary.totalWageInterest)} ({interestPct}%)
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/50 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-indigo-600" />
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Kıdem Tazminatı</span>
-                </div>
-                <div className="text-right font-bold text-indigo-700 dark:text-indigo-400">
-                  {formatTL(summary.totalSeveranceNet)} ({severancePct}%)
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Yıllık İzin Alacağı</span>
-                </div>
-                <div className="text-right font-bold text-emerald-700 dark:text-emerald-400">
-                  {formatTL(summary.totalLeaveNet)} ({leavePct}%)
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50 sm:col-span-2 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <div className="w-3 h-3 rounded-full bg-purple-600" />
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Manevi & Ek Tazminatlar</span>
-                </div>
-                <div className="text-right font-bold text-purple-700 dark:text-purple-400">
-                  {formatTL(summary.totalOtherCompensations)} ({compPct}%)
-                </div>
-              </div>
-
-            </div>
+      {/* 1. Header & Navigation */}
+      <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-slate-300 dark:border-slate-700 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-slate-900 dark:border-slate-100">
+          <div>
+            <h2 className="text-base sm:text-lg font-black tracking-wider uppercase text-slate-900 dark:text-white font-serif flex items-center space-x-2">
+              <Activity className="w-5 h-5 text-sky-600 shrink-0" />
+              <span>GELİŞMİŞ BORDRO, VERGİ VE GECİKME FAİZİ ANALİZ PANELİ</span>
+            </h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+              Maaş alacakları, vergi dilimi artış dinamikleri ve dönemsel faiz getirisinin finansal analitiği
+            </p>
           </div>
 
-          {/* Quick Legal Key Stats */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-              Yasal & İcra Notları
-            </h3>
-            
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
-              <span className="font-bold text-slate-800 dark:text-slate-200 block">Mevduat En Yüksek Faiz Talebi</span>
-              <p className="text-slate-500 dark:text-slate-400">
-                4857 Sayılı Kanun m.34 gereğince, ücret alacaklarına uygulanacak faiz mevduata uygulanan en yüksek faizdir.
-              </p>
+          {/* Sub Tabs */}
+          <div className="flex items-center space-x-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 shrink-0 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap ${
+                activeTab === 'overview'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Portföy & Alacak Trendi
+            </button>
+            <button
+              onClick={() => setActiveTab('interest_growth')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap ${
+                activeTab === 'interest_growth'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Aylık Faiz Yükü
+            </button>
+            <button
+              onClick={() => setActiveTab('tax_analysis')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition whitespace-nowrap ${
+                activeTab === 'tax_analysis'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              Vergi Dilimi Eğrisi
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Analytical KPIs */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 text-xs">
+          <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span className="text-slate-500 dark:text-slate-400 block font-medium">Faiz Verimi (Getiri Oranı):</span>
+            <span className="text-base font-black text-rose-700 dark:text-rose-400 font-mono">%{interestYield}</span>
+          </div>
+          <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span className="text-slate-500 dark:text-slate-400 block font-medium">Ortalama Gecikme Süresi:</span>
+            <span className="text-base font-black text-amber-700 dark:text-amber-400 font-mono">{avgDelay} Gün</span>
+          </div>
+          <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span className="text-slate-500 dark:text-slate-400 block font-medium">En Çok Faiz Biriken Ay:</span>
+            <span className="text-base font-black text-indigo-700 dark:text-indigo-400 font-mono">{maxInterestRow?.period || '-'}</span>
+          </div>
+          <div className="p-2.5 rounded bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <span className="text-slate-500 dark:text-slate-400 block font-medium">Ödenmeyen Maaş Sayısı:</span>
+            <span className="text-base font-black text-slate-900 dark:text-white font-mono">{unpaidRows.length} Ay</span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* 2. Tab Contents */}
+
+      {/* TAB 1: OVERVIEW & PORTFOLIO BREAKDOWN */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
+          
+          {/* Portfolio Progress Bar */}
+          <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-slate-300 dark:border-slate-700 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white font-serif">
+                Dava Alacak Kalemlerinin Oransal Portföy Dağılımı
+              </h3>
+              <span className="text-xs font-mono font-black text-emerald-700 dark:text-emerald-400">
+                Genel Toplam: {formatTL(summary.grandTotalClaim)}
+              </span>
             </div>
 
-            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
-              <span className="font-bold text-slate-800 dark:text-slate-200 block">Ödenen Ağustos Maaşı Faiz Farkı</span>
-              <p className="text-slate-500 dark:text-slate-400">
-                05.09.2025 muacceliyet tarihli maaş 05.01.2026'da (122 gün gecikmeyle) ödendiği için anapara ödenmiş sayılmış, sadece 7.855,34 TL faiz farkı talep edilmiştir.
-              </p>
+            {/* Stacked Bar */}
+            <div className="h-7 w-full rounded-md overflow-hidden flex bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-inner">
+              <div style={{ width: `${wagePrincipalPct}%` }} className="bg-amber-500 hover:opacity-90 transition flex items-center justify-center text-[10px] text-white font-bold" title={`Maaş Anapara: ${wagePrincipalPct}%`}>
+                {parseFloat(wagePrincipalPct) > 8 ? `${wagePrincipalPct}%` : ''}
+              </div>
+              <div style={{ width: `${interestPct}%` }} className="bg-rose-600 hover:opacity-90 transition flex items-center justify-center text-[10px] text-white font-bold" title={`Gecikme Faizi: ${interestPct}%`}>
+                {parseFloat(interestPct) > 5 ? `${interestPct}%` : ''}
+              </div>
+              <div style={{ width: `${severancePct}%` }} className="bg-indigo-600 hover:opacity-90 transition flex items-center justify-center text-[10px] text-white font-bold" title={`Kıdem Tazminatı: ${severancePct}%`}>
+                {parseFloat(severancePct) > 4 ? `${severancePct}%` : ''}
+              </div>
+              <div style={{ width: `${leavePct}%` }} className="bg-emerald-600 hover:opacity-90 transition flex items-center justify-center text-[10px] text-white font-bold" title={`Yıllık İzin: ${leavePct}%`}>
+                {parseFloat(leavePct) > 3 ? `${leavePct}%` : ''}
+              </div>
+              <div style={{ width: `${compPct}%` }} className="bg-purple-600 hover:opacity-90 transition flex items-center justify-center text-[10px] text-white font-bold" title={`Manevi Tazminat: ${compPct}%`}>
+                {parseFloat(compPct) > 8 ? `${compPct}%` : ''}
+              </div>
+            </div>
+
+            {/* Category Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2 text-xs">
+              <div className="p-3 rounded bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50">
+                <div className="flex items-center space-x-1.5 mb-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+                  <span className="font-bold text-slate-800 dark:text-slate-200">Maaş Anapara</span>
+                </div>
+                <div className="font-mono font-black text-amber-800 dark:text-amber-300 text-sm">
+                  {formatTL(summary.totalWagePrincipalUnpaid)}
+                </div>
+                <span className="text-[10px] text-slate-500">Portföy payı: %{wagePrincipalPct}</span>
+              </div>
+
+              <div className="p-3 rounded bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900/50">
+                <div className="flex items-center space-x-1.5 mb-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-rose-600 shrink-0" />
+                  <span className="font-bold text-slate-800 dark:text-slate-200">Gecikme Faizi</span>
+                </div>
+                <div className="font-mono font-black text-rose-800 dark:text-rose-300 text-sm">
+                  {formatTL(summary.totalWageInterest)}
+                </div>
+                <span className="text-[10px] text-slate-500">Portföy payı: %{interestPct}</span>
+              </div>
+
+              <div className="p-3 rounded bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/50">
+                <div className="flex items-center space-x-1.5 mb-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0" />
+                  <span className="font-bold text-slate-800 dark:text-slate-200">Kıdem Tazminatı</span>
+                </div>
+                <div className="font-mono font-black text-indigo-800 dark:text-indigo-300 text-sm">
+                  {formatTL(summary.totalSeveranceNet)}
+                </div>
+                <span className="text-[10px] text-slate-500">Portföy payı: %{severancePct}</span>
+              </div>
+
+              <div className="p-3 rounded bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50">
+                <div className="flex items-center space-x-1.5 mb-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 shrink-0" />
+                  <span className="font-bold text-slate-800 dark:text-slate-200">Yıllık İzin</span>
+                </div>
+                <div className="font-mono font-black text-emerald-800 dark:text-emerald-300 text-sm">
+                  {formatTL(summary.totalLeaveNet)}
+                </div>
+                <span className="text-[10px] text-slate-500">Portföy payı: %{leavePct}</span>
+              </div>
+
+              <div className="p-3 rounded bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-900/50">
+                <div className="flex items-center space-x-1.5 mb-1">
+                  <div className="w-2.5 h-2.5 rounded-full bg-purple-600 shrink-0" />
+                  <span className="font-bold text-slate-800 dark:text-slate-200">Manevi Tazminat</span>
+                </div>
+                <div className="font-mono font-black text-purple-800 dark:text-purple-300 text-sm">
+                  {formatTL(summary.totalOtherCompensations)}
+                </div>
+                <span className="text-[10px] text-slate-500">Portföy payı: %{compPct}</span>
+              </div>
             </div>
           </div>
 
         </div>
       )}
 
-      {/* 2. AYLIK FAİZ & ALACAK TRENDİ */}
-      {activeChart === 'salary_trend' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Aylık Net Maaş ve İşleyen Gecikme Faizi Gelişimi
+      {/* TAB 2: MONTHLY INTEREST LOAD & SALARY COMPARISON */}
+      {activeTab === 'interest_growth' && (
+        <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-slate-300 dark:border-slate-700 shadow-sm space-y-5">
+          <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white font-serif">
+              Dönem Bazında Anapara ve Biriken Faiz Büyüme Grafiği
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Her ay için anapara (mavi) ve biriken gecikme faizi (kırmızı) dağılımı
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Her dönemin net maaş anaparası (mavi) ve geçen sürede oluşan gecikme faizi (kırmızı)
             </p>
           </div>
 
           <div className="space-y-3">
             {rows.map((row) => {
-              const salaryWidth = Math.min(100, (row.netSalary / maxClaim) * 100);
-              const interestWidth = Math.min(100, (row.accruedInterest / maxClaim) * 100);
+              const salaryPct = (row.netSalary / maxTotalClaim) * 100;
+              const interestPct = (row.accruedInterest / maxTotalClaim) * 100;
 
               return (
                 <div key={row.id} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    <span className="w-28 font-bold">{row.period}</span>
-                    <div className="flex items-center space-x-3 text-right">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-semibold text-slate-800 dark:text-slate-200 gap-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-bold w-28 text-slate-900 dark:text-white">{row.period}</span>
+                      <span className="text-[11px] font-mono text-slate-500">({row.delayDays} gün gecikme - %{row.annualInterestRate})</span>
+                    </div>
+                    <div className="flex items-center space-x-3 text-right font-mono">
                       {row.status === 'unpaid' && (
-                        <span className="text-sky-600 dark:text-sky-400">Maaş: {formatTL(row.netSalary, false)}</span>
+                        <span className="text-sky-700 dark:text-sky-300">Maaş: {formatTL(row.netSalary, false)}</span>
                       )}
-                      <span className="text-rose-600 dark:text-rose-400 font-bold">+ Faiz: {formatTL(row.accruedInterest, false)}</span>
-                      <span className="text-slate-900 dark:text-white font-extrabold w-28">Toplam: {formatTL(row.totalClaim, false)}</span>
+                      <span className="text-rose-700 dark:text-rose-400 font-bold">+ Faiz: {formatTL(row.accruedInterest, false)}</span>
+                      <span className="text-slate-950 dark:text-white font-black">Toplam: {formatTL(row.totalClaim, false)}</span>
                     </div>
                   </div>
 
-                  <div className="h-4 w-full rounded-lg bg-slate-100 dark:bg-slate-800 flex overflow-hidden">
+                  <div className="h-5 w-full rounded bg-slate-100 dark:bg-slate-800 flex overflow-hidden border border-slate-200 dark:border-slate-700">
                     {row.status === 'unpaid' && (
                       <div
-                        style={{ width: `${salaryWidth}%` }}
-                        className="bg-sky-500 hover:bg-sky-400 transition"
+                        style={{ width: `${salaryPct}%` }}
+                        className="bg-sky-600 transition hover:opacity-90"
+                        title={`Maaş: ${formatTL(row.netSalary)}`}
                       />
                     )}
                     <div
-                      style={{ width: `${interestWidth}%` }}
-                      className="bg-rose-500 hover:bg-rose-400 transition"
+                      style={{ width: `${interestPct}%` }}
+                      className="bg-rose-600 transition hover:opacity-90"
+                      title={`Faiz: ${formatTL(row.accruedInterest)}`}
                     />
                   </div>
                 </div>
@@ -217,45 +276,52 @@ export const ChartsView: React.FC<ChartsViewProps> = ({ rows, summary, rawRecord
         </div>
       )}
 
-      {/* 3. VERGİ & SGK KESİNTİ TRENDİ */}
-      {activeChart === 'tax_breakdown' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Bordro Kesinti Analizi (Gelir Vergisi & SGK Kesintileri)
+      {/* TAB 3: TAX BRACKET CURVE & SGK BURDEN */}
+      {activeTab === 'tax_analysis' && (
+        <div className="bg-white dark:bg-slate-900 rounded-lg p-5 border border-slate-300 dark:border-slate-700 shadow-sm space-y-5">
+          <div className="border-b border-slate-200 dark:border-slate-800 pb-3">
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white font-serif">
+              Gelir Vergisi Dilimi Artış Eğrisi ve Yasal Kesinti Yükü
             </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Yıl içindeki gelir vergisi dilimi artışı ve yasal kesintiler
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Aynı brüt kazançla (70.902 TL) kümülatif matrah artışı sebebiyle gelir vergisinin yükselişi ve net maaş erimesi
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="py-2.5 px-3">Dönem</th>
-                  <th className="py-2.5 px-3 text-right">Brüt Kazanç</th>
-                  <th className="py-2.5 px-3 text-right">Net Maaş</th>
-                  <th className="py-2.5 px-3 text-right">Gelir Vergisi</th>
-                  <th className="py-2.5 px-3 text-right">SGK İşçi</th>
-                  <th className="py-2.5 px-3 text-right">Yemek Yardımı</th>
-                  <th className="py-2.5 px-3 text-right">Toplam Kesinti</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {rawRecords.map((rec) => (
-                  <tr key={rec.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">{rec.period}</td>
-                    <td className="py-2.5 px-3 text-right font-medium">{formatTL(rec.grossSalary, false)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-emerald-600 dark:text-emerald-400">{formatTL(rec.netSalary, false)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-rose-600 dark:text-rose-400">{formatTL(rec.incomeTaxAmount, false)}</td>
-                    <td className="py-2.5 px-3 text-right font-medium text-slate-700 dark:text-slate-300">{formatTL(rec.sgkWorkerDeduction, false)}</td>
-                    <td className="py-2.5 px-3 text-right font-medium text-sky-600 dark:text-sky-400">{formatTL(rec.foodAllowanceNet, false)}</td>
-                    <td className="py-2.5 px-3 text-right font-semibold text-rose-700 dark:text-rose-300">{formatTL(rec.totalDeductions, false)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Visual Tax Progression Bars */}
+          <div className="space-y-3">
+            {rawRecords.map((rec) => {
+              const taxPct = (rec.incomeTaxAmount / maxIncomeTax) * 100;
+              const netPct = (rec.netSalary / maxNetSalary) * 100;
+
+              return (
+                <div key={rec.id} className="p-3 rounded bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between text-xs font-semibold gap-1">
+                    <span className="font-bold text-slate-900 dark:text-white">{rec.period}</span>
+                    <div className="flex items-center space-x-4 font-mono text-[11px]">
+                      <span className="text-slate-600 dark:text-slate-400">Brüt: {formatTL(rec.grossSalary, false)}</span>
+                      <span className="text-rose-700 dark:text-rose-400 font-bold">Gelir Vergisi: {formatTL(rec.incomeTaxAmount, false)}</span>
+                      <span className="text-emerald-700 dark:text-emerald-400 font-black">Net Maaş: {formatTL(rec.netSalary, false)}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block mb-0.5">Gelir Vergisi Tutarı</span>
+                      <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <div style={{ width: `${taxPct}%` }} className="h-full bg-rose-600 transition" />
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 block mb-0.5">Net Maaş Oranı</span>
+                      <div className="h-3 w-full rounded bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                        <div style={{ width: `${netPct}%` }} className="h-full bg-emerald-600 transition" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -22,25 +22,23 @@ import {
   getTurkeyDateString,
   getMillisecondsUntilTurkeyMidnight
 } from './utils/interestCalculator';
-import { calculateSeverance, calculateAnnualLeave, calculateCompensationItem } from './utils/compensationCalculator';
-import { exportToCSV, exportToJSON } from './utils/exportUtils';
+import { getTcmbRateForMonthYear } from './data/tcmbRates';
 import { Navbar } from './components/Navbar';
 import { SummaryCards } from './components/SummaryCards';
 import { InterestTable } from './components/InterestTable';
-import { CompensationModule } from './components/CompensationModule';
+import { CourtCostsModule } from './components/CourtCostsModule';
 import { ChartsView } from './components/ChartsView';
 import { CourtReportView } from './components/CourtReportView';
 import { PayrollDetailModal } from './components/PayrollDetailModal';
-import { FileUploader } from './components/FileUploader';
 
 export const App: React.FC = () => {
   // State
   const [darkMode, setDarkMode] = useState<boolean>(false);
-
-  const [activeTab, setActiveTab] = useState<'interest' | 'compensation' | 'analytics' | 'report'>('interest');
+  const [activeTab, setActiveTab] = useState<'interest' | 'court_costs' | 'analytics' | 'report'>('interest');
   
-  // Settings
+  // Interest Settings
   const [globalInterestRate, setGlobalInterestRate] = useState<number>(DEFAULT_ANNUAL_INTEREST_RATE);
+  const [isTcmbGradualMode, setIsTcmbGradualMode] = useState<boolean>(false);
   const [calculationDate, setCalculationDate] = useState<string>(DEFAULT_CALCULATION_DATE);
   const [dueDay, setDueDay] = useState<number>(5);
 
@@ -54,9 +52,8 @@ export const App: React.FC = () => {
   const [annualLeave, setAnnualLeave] = useState<AnnualLeaveClaim>(DEFAULT_ANNUAL_LEAVE);
   const [compensations, setCompensations] = useState<CompensationItem[]>(DEFAULT_COMPENSATIONS);
 
-  // Modals
+  // Detail Modal
   const [selectedPayrollRecord, setSelectedPayrollRecord] = useState<RawPayrollRecord | null>(null);
-  const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
 
   // Dark Mode side effect
   useEffect(() => {
@@ -75,17 +72,7 @@ export const App: React.FC = () => {
       const msUntilMidnight = getMillisecondsUntilTurkeyMidnight();
       
       timerId = setTimeout(() => {
-        const nextTurkeyDate = getTurkeyDateString();
-        // If calculation date was set to today's date, roll over to the new day automatically
-        setCalculationDate(prev => {
-          // Trigger update and recalculate
-          return prev;
-        });
-
-        // Recalculate rows to immediately reflect day increment if relevant
         setRows(prevRows => prevRows.map(row => calculateSingleRow({ ...row })));
-
-        // Schedule next midnight in Turkey
         scheduleTurkeyMidnightRollover();
       }, msUntilMidnight + 100);
     };
@@ -97,20 +84,24 @@ export const App: React.FC = () => {
     };
   }, []);
 
-  // Recalculate rows when global rate, calculation date or dueDay change
+  // Recalculate rows when global rate, TCMB mode, calculation date or dueDay change
   useEffect(() => {
     setRows(prevRows => {
       return prevRows.map(row => {
+        const rateToApply = isTcmbGradualMode 
+          ? getTcmbRateForMonthYear(row.month, row.year)
+          : globalInterestRate;
+
         const updatedRow = {
           ...row,
-          annualInterestRate: globalInterestRate,
+          annualInterestRate: rateToApply,
           calculationDate,
           dueDate: getDueDateForMonthYear(row.month, row.year, dueDay)
         };
         return calculateSingleRow(updatedRow);
       });
     });
-  }, [globalInterestRate, calculationDate, dueDay]);
+  }, [globalInterestRate, isTcmbGradualMode, calculationDate, dueDay]);
 
   // Base gross for compensations (from first record or severance)
   const baseGross = rawRecords[0]?.grossSalary || 70902.23;
@@ -125,7 +116,10 @@ export const App: React.FC = () => {
     setRows(prevRows => {
       return prevRows.map(row => {
         if (row.id !== id) return row;
-        const merged = { ...row, ...updates, calculationDate };
+        const rateToApply = isTcmbGradualMode 
+          ? getTcmbRateForMonthYear(row.month, row.year)
+          : globalInterestRate;
+        const merged = { ...row, ...updates, annualInterestRate: updates.annualInterestRate || rateToApply, calculationDate };
         return calculateSingleRow(merged);
       });
     });
@@ -140,6 +134,7 @@ export const App: React.FC = () => {
     const newYear = rows.length > 0 ? (newMonth === 1 ? rows[rows.length - 1].year + 1 : rows[rows.length - 1].year) : 2026;
     const periodName = `Yeni Dönem ${newMonth}/${newYear}`;
     const dueDate = getDueDateForMonthYear(newMonth, newYear, dueDay);
+    const rateToApply = isTcmbGradualMode ? getTcmbRateForMonthYear(newMonth, newYear) : globalInterestRate;
 
     const newRow = calculateSingleRow({
       id: `custom-pay-${Date.now()}`,
@@ -151,7 +146,7 @@ export const App: React.FC = () => {
       status: 'unpaid',
       calculationDate,
       delayDays: 0,
-      annualInterestRate: globalInterestRate,
+      annualInterestRate: rateToApply,
       accruedInterest: 0,
       totalClaim: 0,
       note: 'Ödenmedi'
@@ -160,52 +155,16 @@ export const App: React.FC = () => {
     setRows([...rows, newRow]);
   };
 
-  const handlePayrollsLoaded = (newPayrolls: RawPayrollRecord[]) => {
-    // Sort by year then month
-    const sorted = [...newPayrolls].sort((a, b) => {
-      if (a.year !== b.year) return a.year - b.year;
-      return a.month - b.month;
-    });
-
-    setRawRecords(sorted);
-    const newRows = buildSalaryClaimRows(sorted, globalInterestRate, calculationDate, dueDay);
-    setRows(newRows);
-
-    // Also update Severance and Leave based on latest payroll
-    const latest = sorted[sorted.length - 1];
-    if (latest) {
-      const recalculatedSeverance = calculateSeverance(
-        '2025-08-04',
-        calculationDate,
-        latest.grossSalary,
-        latest.foodAllowanceGross
-      );
-      setSeverance(recalculatedSeverance);
-
-      const recalculatedLeave = calculateAnnualLeave(latest.grossSalary, 14);
-      setAnnualLeave(recalculatedLeave);
-
-      setCompensations(prev => 
-        prev.map(c => calculateCompensationItem(c, latest.grossSalary))
-      );
-    }
-
-    setIsUploaderOpen(false);
-  };
-
   const handleResetToDefaults = () => {
     setRawRecords(DEFAULT_RAW_PAYROLLS);
     setGlobalInterestRate(DEFAULT_ANNUAL_INTEREST_RATE);
+    setIsTcmbGradualMode(false);
     setCalculationDate(DEFAULT_CALCULATION_DATE);
     setDueDay(5);
     setRows(buildSalaryClaimRows(DEFAULT_RAW_PAYROLLS, DEFAULT_ANNUAL_INTEREST_RATE, DEFAULT_CALCULATION_DATE, 5));
     setSeverance(DEFAULT_SEVERANCE);
     setAnnualLeave(DEFAULT_ANNUAL_LEAVE);
     setCompensations(DEFAULT_COMPENSATIONS);
-  };
-
-  const handleExportCSV = () => {
-    exportToCSV(rows, severance, annualLeave, compensations, summary, calculationDate);
   };
 
   return (
@@ -218,8 +177,6 @@ export const App: React.FC = () => {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         onResetToDefaults={handleResetToDefaults}
-        onExportCSV={handleExportCSV}
-        onOpenUploader={() => setIsUploaderOpen(true)}
       />
 
       {/* Main Container */}
@@ -228,7 +185,7 @@ export const App: React.FC = () => {
         {/* KPI Cards Overview */}
         <SummaryCards
           summary={summary}
-          activeRate={globalInterestRate}
+          activeRate={isTcmbGradualMode ? 48.6 : globalInterestRate}
           severance={severance}
           annualLeave={annualLeave}
           compensations={compensations}
@@ -239,11 +196,16 @@ export const App: React.FC = () => {
           <InterestTable
             rows={rows}
             severance={severance}
+            setSeverance={setSeverance}
             annualLeave={annualLeave}
+            setAnnualLeave={setAnnualLeave}
             compensations={compensations}
+            setCompensations={setCompensations}
             summary={summary}
             globalInterestRate={globalInterestRate}
             setGlobalInterestRate={setGlobalInterestRate}
+            isTcmbGradualMode={isTcmbGradualMode}
+            setIsTcmbGradualMode={setIsTcmbGradualMode}
             calculationDate={calculationDate}
             setCalculationDate={setCalculationDate}
             dueDay={dueDay}
@@ -252,19 +214,14 @@ export const App: React.FC = () => {
             onDeleteRow={handleDeleteRow}
             onAddRow={handleAddRow}
             onSelectPayrollDetail={(rec) => setSelectedPayrollRecord(rec)}
+            baseGross={baseGross}
           />
         )}
 
-        {/* Tab 2: Compensation Module */}
-        {activeTab === 'compensation' && (
-          <CompensationModule
-            severance={severance}
-            setSeverance={setSeverance}
-            annualLeave={annualLeave}
-            setAnnualLeave={setAnnualLeave}
-            compensations={compensations}
-            setCompensations={setCompensations}
-            baseGross={baseGross}
+        {/* Tab 2: Court Fees & Costs Module */}
+        {activeTab === 'court_costs' && (
+          <CourtCostsModule
+            grandTotalClaim={summary.grandTotalClaim}
           />
         )}
 
@@ -294,9 +251,9 @@ export const App: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="no-print border-t border-slate-200 dark:border-slate-800 py-6 bg-white/60 dark:bg-slate-900/60 text-center text-xs text-slate-500 dark:text-slate-400">
+      <footer className="border-t border-slate-200 dark:border-slate-800 py-6 bg-white/60 dark:bg-slate-900/60 text-center text-xs text-slate-500 dark:text-slate-400">
         <p>
-          Maaş & Gecikme Faizi Hesaplayıcı • 4857 Sayılı İş Kanunu m.34 & Mevduata Uygulanan En Yüksek Faiz Hükümleri
+          Maaş & Gecikme Faizi Hesaplayıcı • 4857 Sayılı İş Kanunu m.34 & 492 Sayılı Harçlar Kanunu Hükümleri
         </p>
       </footer>
 
@@ -304,12 +261,6 @@ export const App: React.FC = () => {
       <PayrollDetailModal
         record={selectedPayrollRecord}
         onClose={() => setSelectedPayrollRecord(null)}
-      />
-
-      <FileUploader
-        isOpen={isUploaderOpen}
-        onClose={() => setIsUploaderOpen(false)}
-        onPayrollsLoaded={handlePayrollsLoaded}
       />
 
     </div>

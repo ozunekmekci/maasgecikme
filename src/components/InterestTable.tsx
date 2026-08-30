@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SalaryClaimRow, SeveranceClaim, AnnualLeaveClaim, CompensationItem, CaseSummary, RawPayrollRecord } from '../types/payroll';
 import { formatTL, formatDateTR, getTurkeyDateString } from '../utils/interestCalculator';
+import { getTcmbRateForMonthYear, TCMB_HISTORICAL_DEPOSIT_RATES } from '../data/tcmbRates';
 import { 
   Calendar, 
   Percent, 
@@ -16,17 +17,28 @@ import {
   Building,
   User,
   ShieldCheck,
-  Briefcase
+  Briefcase,
+  TrendingUp,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  Award,
+  HeartHandshake
 } from 'lucide-react';
 
 interface InterestTableProps {
   rows: SalaryClaimRow[];
   severance: SeveranceClaim;
+  setSeverance: React.Dispatch<React.SetStateAction<SeveranceClaim>>;
   annualLeave: AnnualLeaveClaim;
+  setAnnualLeave: React.Dispatch<React.SetStateAction<AnnualLeaveClaim>>;
   compensations: CompensationItem[];
+  setCompensations: React.Dispatch<React.SetStateAction<CompensationItem[]>>;
   summary: CaseSummary;
   globalInterestRate: number;
   setGlobalInterestRate: (rate: number) => void;
+  isTcmbGradualMode: boolean;
+  setIsTcmbGradualMode: (val: boolean) => void;
   calculationDate: string;
   setCalculationDate: (date: string) => void;
   dueDay: number;
@@ -35,16 +47,22 @@ interface InterestTableProps {
   onDeleteRow: (id: string) => void;
   onAddRow: () => void;
   onSelectPayrollDetail: (record: RawPayrollRecord) => void;
+  baseGross: number;
 }
 
 export const InterestTable: React.FC<InterestTableProps> = ({
   rows,
   severance,
+  setSeverance,
   annualLeave,
+  setAnnualLeave,
   compensations,
+  setCompensations,
   summary,
   globalInterestRate,
   setGlobalInterestRate,
+  isTcmbGradualMode,
+  setIsTcmbGradualMode,
   calculationDate,
   setCalculationDate,
   dueDay,
@@ -52,11 +70,14 @@ export const InterestTable: React.FC<InterestTableProps> = ({
   onUpdateRow,
   onDeleteRow,
   onAddRow,
-  onSelectPayrollDetail
+  onSelectPayrollDetail,
+  baseGross
 }) => {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [isTazminatExpanded, setIsTazminatExpanded] = useState<boolean>(false);
 
   const applyPresetRate = (rate: number) => {
+    setIsTcmbGradualMode(false);
     setGlobalInterestRate(rate);
   };
 
@@ -129,7 +150,9 @@ export const InterestTable: React.FC<InterestTableProps> = ({
               </div>
               <div>
                 <span className="text-slate-500 dark:text-slate-400 font-medium block">Uygulanan Faiz:</span>
-                <span className="font-bold text-rose-700 dark:text-rose-400">Yıllık %{globalInterestRate} (m.34)</span>
+                <span className="font-bold text-rose-700 dark:text-rose-400">
+                  {isTcmbGradualMode ? 'TCMB Kademeli Mevduat Faizi' : `Yıllık %${globalInterestRate} (m.34)`}
+                </span>
               </div>
             </div>
           </div>
@@ -138,53 +161,77 @@ export const InterestTable: React.FC<InterestTableProps> = ({
 
       </div>
 
-      {/* 2. Dinamik Parametre & Ayar Paneli */}
+      {/* 2. Dinamik Parametre & Ayar Paneli (TCMB Kademeli / Sabit Faiz Seçicisi) */}
       <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-300 dark:border-slate-700 shadow-sm font-sans">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           
-          {/* Faiz Oranı */}
+          {/* Faiz Modu ve Oranı */}
           <div className="flex-1">
-            <label className="flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 mb-1.5">
-              <Percent className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-              <span>Dinamik Yıllık Faiz Oranı (%)</span>
-            </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative w-28">
-                <input
-                  type="number"
-                  min="0"
-                  max="500"
-                  step="0.5"
-                  value={globalInterestRate}
-                  onChange={(e) => setGlobalInterestRate(parseFloat(e.target.value) || 0)}
-                  className="w-full pl-6 pr-2 py-1.5 text-xs font-bold rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-800 font-mono"
-                />
-                <span className="absolute left-2.5 top-2 text-slate-400 font-bold text-xs">%</span>
-              </div>
-
-              <div className="flex items-center space-x-1">
-                {[48, 50, 45, 24].map((preset) => (
-                  <button
-                    key={preset}
-                    onClick={() => applyPresetRate(preset)}
-                    className={`px-2 py-1.5 rounded text-xs font-bold transition-all ${
-                      globalInterestRate === preset
-                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700'
-                    }`}
-                  >
-                    %{preset} {preset === 48 ? '(Varsayılan)' : preset === 24 ? '(Yasal)' : ''}
-                  </button>
-                ))}
-              </div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                <Percent className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
+                <span>Faiz Hesaplama Modu</span>
+              </label>
+              
+              <button
+                onClick={() => setIsTcmbGradualMode(!isTcmbGradualMode)}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded text-xs font-bold transition ${
+                  isTcmbGradualMode
+                    ? 'bg-rose-700 text-white shadow-sm ring-2 ring-rose-500/50'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>{isTcmbGradualMode ? 'TCMB Kademeli Faiz Aktif' : 'TCMB Kademeli Faizi Aç'}</span>
+              </button>
             </div>
+
+            {!isTcmbGradualMode ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-28">
+                  <input
+                    type="number"
+                    min="0"
+                    max="500"
+                    step="0.5"
+                    value={globalInterestRate}
+                    onChange={(e) => setGlobalInterestRate(parseFloat(e.target.value) || 0)}
+                    className="w-full pl-6 pr-2 py-1.5 text-xs font-bold rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-800 font-mono"
+                  />
+                  <span className="absolute left-2.5 top-2 text-slate-400 font-bold text-xs">%</span>
+                </div>
+
+                <div className="flex items-center space-x-1">
+                  {[48, 50, 45, 24].map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => applyPresetRate(preset)}
+                      className={`px-2 py-1.5 rounded text-xs font-bold transition-all ${
+                        globalInterestRate === preset
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700'
+                      }`}
+                    >
+                      %{preset} {preset === 48 ? '(Varsayılan)' : preset === 24 ? '(Yasal)' : ''}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-2 rounded bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-800 dark:text-rose-300">
+                <span className="font-bold block">TCMB En Yüksek Mevduat Oranları (1-3 Ay) Otomatik Uygulanıyor:</span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400">
+                  Her dönemin muacceliyet tarihindeki resmi TCMB ağırlıklı ortalama mevduat faiz oranı (Ağustos %53.20, Eylül %52.80, Ekim %51.50... vb.) işletilmektedir.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Hesaplama Tarihi */}
           <div className="flex-1">
             <label className="flex items-center space-x-1.5 text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200 mb-1.5">
               <Calendar className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
-              <span>Hesaplama Tarihi</span>
+              <span>Hesaplama Tarihi (TR Saati)</span>
             </label>
             <div className="flex items-center space-x-1.5">
               <input
@@ -566,6 +613,184 @@ export const InterestTable: React.FC<InterestTableProps> = ({
           </table>
         </div>
 
+      </div>
+
+      {/* 4. Sadeleştirilmiş Hızlı Tazminat Parametreleri Paneli (Accordion) */}
+      <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-300 dark:border-slate-700 shadow-sm overflow-hidden font-sans">
+        <button
+          onClick={() => setIsTazminatExpanded(!isTazminatExpanded)}
+          className="w-full p-3.5 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition text-left"
+        >
+          <div className="flex items-center space-x-2">
+            <Award className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-white font-serif">
+              TAZMİNAT & İZİN ALACAKLARI PARAMETRELERİ
+            </span>
+            <span className="hidden sm:inline text-[11px] font-semibold text-slate-500">
+              (Kıdem: {formatTL(severance.netSeverance)}, İzin: {formatTL(annualLeave.netAmount)}, Manevi: {formatTL(compensations[0]?.calculatedAmount || 0)})
+            </span>
+          </div>
+          <div className="flex items-center space-x-1 text-slate-500 shrink-0">
+            <span className="text-xs font-semibold">{isTazminatExpanded ? 'Gizle' : 'Düzenle'}</span>
+            {isTazminatExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
+        </button>
+
+        {isTazminatExpanded && (
+          <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-4 text-xs">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              
+              {/* Kıdem Tazminatı Kartı */}
+              <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2.5">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200 dark:border-slate-700">
+                  <span className="font-bold text-slate-900 dark:text-white">1. Kıdem Tazminatı (1475 m.14)</span>
+                  <input
+                    type="checkbox"
+                    checked={severance.enabled}
+                    onChange={(e) => setSeverance(prev => ({ ...prev, enabled: e.target.checked }))}
+                    className="rounded text-slate-900 focus:ring-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-0.5">Çıplak Brüt Ücret (TL):</label>
+                  <input
+                    type="number"
+                    value={severance.baseGross}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setSeverance(prev => ({
+                        ...prev,
+                        baseGross: val,
+                        clothedGross: val + prev.fringeGross
+                      }));
+                    }}
+                    className="w-full px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-0.5">Nakdi Yemek / Yan Hak Brüt (TL):</label>
+                  <input
+                    type="number"
+                    value={severance.fringeGross}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setSeverance(prev => ({
+                        ...prev,
+                        fringeGross: val,
+                        clothedGross: prev.baseGross + val
+                      }));
+                    }}
+                    className="w-full px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+                  />
+                </div>
+                <div className="pt-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 flex justify-between">
+                  <span>Hesaplanan Net Kıdem:</span>
+                  <span className="font-mono">{formatTL(severance.netSeverance)}</span>
+                </div>
+              </div>
+
+              {/* Yıllık İzin Kartı */}
+              <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2.5">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200 dark:border-slate-700">
+                  <span className="font-bold text-slate-900 dark:text-white">2. Yıllık İzin Ücreti (4857 m.59)</span>
+                  <input
+                    type="checkbox"
+                    checked={annualLeave.enabled}
+                    onChange={(e) => setAnnualLeave(prev => ({ ...prev, enabled: e.target.checked }))}
+                    className="rounded text-slate-900 focus:ring-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-0.5">Kullanılmayan İzin Günü:</label>
+                  <input
+                    type="number"
+                    value={annualLeave.leaveDays}
+                    onChange={(e) => {
+                      const days = parseInt(e.target.value, 10) || 0;
+                      setAnnualLeave(prev => ({
+                        ...prev,
+                        leaveDays: days
+                      }));
+                    }}
+                    className="w-full px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-0.5">Çıplak Brüt Maaş (TL):</label>
+                  <input
+                    type="number"
+                    value={annualLeave.nakedGross}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setAnnualLeave(prev => ({
+                        ...prev,
+                        nakedGross: val
+                      }));
+                    }}
+                    className="w-full px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+                  />
+                </div>
+                <div className="pt-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex justify-between">
+                  <span>Hesaplanan Net İzin:</span>
+                  <span className="font-mono">{formatTL(annualLeave.netAmount)}</span>
+                </div>
+              </div>
+
+              {/* Manevi Tazminat Kartı */}
+              <div className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 space-y-2.5">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200 dark:border-slate-700">
+                  <span className="font-bold text-slate-900 dark:text-white">3. Manevi Tazminat Talebi</span>
+                  <input
+                    type="checkbox"
+                    checked={compensations[0]?.enabled || false}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setCompensations(prev => prev.map((c, i) => i === 0 ? { ...c, enabled } : c));
+                    }}
+                    className="rounded text-slate-900 focus:ring-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-0.5">Brüt Maaş Çarpanı (Ay):</label>
+                  <input
+                    type="number"
+                    value={compensations[0]?.multiplier || 6}
+                    onChange={(e) => {
+                      const mult = parseFloat(e.target.value) || 0;
+                      setCompensations(prev => prev.map((c, i) => i === 0 ? {
+                        ...c,
+                        multiplier: mult,
+                        calculatedAmount: baseGross * mult
+                      } : c));
+                    }}
+                    className="w-full px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 block mb-0.5">Sabit Tutar Talebi (TL):</label>
+                  <input
+                    type="number"
+                    value={compensations[0]?.calculatedAmount || 0}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setCompensations(prev => prev.map((c, i) => i === 0 ? {
+                        ...c,
+                        calculatedAmount: val,
+                        fixedAmount: val
+                      } : c));
+                    }}
+                    className="w-full px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono font-bold"
+                  />
+                </div>
+                <div className="pt-1 text-[11px] font-bold text-purple-700 dark:text-purple-300 flex justify-between">
+                  <span>Talep Edilen Tutar:</span>
+                  <span className="font-mono">{formatTL(compensations[0]?.calculatedAmount || 0)}</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
       </div>
 
     </div>
