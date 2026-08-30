@@ -1,4 +1,5 @@
 import { RawPayrollRecord, SalaryClaimRow, SeveranceClaim, AnnualLeaveClaim, CompensationItem } from '../types/payroll';
+import { getTurkeyDateString } from '../utils/interestCalculator';
 
 export const DEFAULT_RAW_PAYROLLS: RawPayrollRecord[] = [
   {
@@ -339,13 +340,13 @@ export const DEFAULT_RAW_PAYROLLS: RawPayrollRecord[] = [
   }
 ];
 
-export const DEFAULT_CALCULATION_DATE = '2026-08-28';
+export const DEFAULT_CALCULATION_DATE = getTurkeyDateString();
 export const DEFAULT_ANNUAL_INTEREST_RATE = 48; // %48
 
 export const DEFAULT_SEVERANCE: SeveranceClaim = {
   enabled: true,
   startDate: '2025-08-04',
-  terminationDate: '2026-08-28',
+  terminationDate: getTurkeyDateString(),
   serviceYears: 1,
   serviceDays: 24,
   baseGross: 70902.23,

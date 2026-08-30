@@ -40,7 +40,7 @@ export const App: React.FC = () => {
   const [globalInterestRate, setGlobalInterestRate] = useState<number>(DEFAULT_ANNUAL_INTEREST_RATE);
   const [isTcmbGradualMode, setIsTcmbGradualMode] = useState<boolean>(false);
   const [calculationDate, setCalculationDate] = useState<string>(DEFAULT_CALCULATION_DATE);
-  const [dueDay, setDueDay] = useState<number>(5);
+  const dueDay = 5;
 
   // Data
   const [rawRecords, setRawRecords] = useState<RawPayrollRecord[]>(DEFAULT_RAW_PAYROLLS);
@@ -72,7 +72,8 @@ export const App: React.FC = () => {
       const msUntilMidnight = getMillisecondsUntilTurkeyMidnight();
       
       timerId = setTimeout(() => {
-        setRows(prevRows => prevRows.map(row => calculateSingleRow({ ...row })));
+        const nextTurkeyDate = getTurkeyDateString();
+        setCalculationDate(nextTurkeyDate);
         scheduleTurkeyMidnightRollover();
       }, msUntilMidnight + 100);
     };
@@ -156,12 +157,12 @@ export const App: React.FC = () => {
   };
 
   const handleResetToDefaults = () => {
+    const today = getTurkeyDateString();
     setRawRecords(DEFAULT_RAW_PAYROLLS);
     setGlobalInterestRate(DEFAULT_ANNUAL_INTEREST_RATE);
     setIsTcmbGradualMode(false);
-    setCalculationDate(DEFAULT_CALCULATION_DATE);
-    setDueDay(5);
-    setRows(buildSalaryClaimRows(DEFAULT_RAW_PAYROLLS, DEFAULT_ANNUAL_INTEREST_RATE, DEFAULT_CALCULATION_DATE, 5));
+    setCalculationDate(today);
+    setRows(buildSalaryClaimRows(DEFAULT_RAW_PAYROLLS, DEFAULT_ANNUAL_INTEREST_RATE, today, 5));
     setSeverance(DEFAULT_SEVERANCE);
     setAnnualLeave(DEFAULT_ANNUAL_LEAVE);
     setCompensations(DEFAULT_COMPENSATIONS);
@@ -209,7 +210,6 @@ export const App: React.FC = () => {
             calculationDate={calculationDate}
             setCalculationDate={setCalculationDate}
             dueDay={dueDay}
-            setDueDay={setDueDay}
             onUpdateRow={handleUpdateRow}
             onDeleteRow={handleDeleteRow}
             onAddRow={handleAddRow}
