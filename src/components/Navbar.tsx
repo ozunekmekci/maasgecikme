@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'interest' | 'court_costs' | 'analytics' | 'report';
-  setActiveTab: (tab: 'interest' | 'court_costs' | 'analytics' | 'report') => void;
+  activeTab: 'interest' | 'mediation' | 'court_costs' | 'analytics' | 'report';
+  setActiveTab: (tab: 'interest' | 'mediation' | 'court_costs' | 'analytics' | 'report') => void;
   darkMode: boolean;
   setDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
   onResetToDefaults: () => void;
@@ -45,7 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               </div>
               <p className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate max-w-xs">
-                Maaş Gecikme Faizi, Harç & Dava İcmali
+                Maaş Gecikme Faizi, Arabuluculuk & Dava İcmali
               </p>
             </div>
           </div>
@@ -62,6 +62,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Table className="w-3.5 h-3.5" />
               <span>Faiz & Alacak Tablosu</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('mediation')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === 'mediation'
+                  ? 'bg-emerald-800 text-white dark:bg-emerald-600 dark:text-white shadow-sm ring-2 ring-emerald-500/50'
+                  : 'text-emerald-700 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+              }`}
+            >
+              <span className="font-serif">🤝</span>
+              <span>Arabuluculuk & 8 Taksit</span>
             </button>
 
             <button
@@ -133,6 +145,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Table className="w-3.5 h-3.5" />
             <span>Faiz & Alacak</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('mediation')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition ${
+              activeTab === 'mediation' ? 'bg-emerald-800 text-white dark:bg-emerald-600 dark:text-white' : 'text-emerald-700 dark:text-emerald-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <span>🤝 8 Taksit</span>
           </button>
 
           <button

@@ -27,6 +27,7 @@ import { Navbar } from './components/Navbar';
 import { SummaryCards } from './components/SummaryCards';
 import { InterestTable } from './components/InterestTable';
 import { CourtCostsModule } from './components/CourtCostsModule';
+import { MediationPlanModule } from './components/MediationPlanModule';
 import { ChartsView } from './components/ChartsView';
 import { CourtReportView } from './components/CourtReportView';
 import { PayrollDetailModal } from './components/PayrollDetailModal';
@@ -34,7 +35,7 @@ import { PayrollDetailModal } from './components/PayrollDetailModal';
 export const App: React.FC = () => {
   // State
   const [darkMode, setDarkMode] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'interest' | 'court_costs' | 'analytics' | 'report'>('interest');
+  const [activeTab, setActiveTab] = useState<'interest' | 'mediation' | 'court_costs' | 'analytics' | 'report'>('interest');
   
   // Interest Settings
   const [globalInterestRate, setGlobalInterestRate] = useState<number>(DEFAULT_ANNUAL_INTEREST_RATE);
@@ -218,7 +219,18 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Tab 2: Court Fees & Costs Module */}
+        {/* Tab 2: Mediation 8-Installment Plan */}
+        {activeTab === 'mediation' && (
+          <MediationPlanModule
+            rows={rows}
+            summary={summary}
+            severance={severance}
+            annualLeave={annualLeave}
+            globalInterestRate={globalInterestRate}
+          />
+        )}
+
+        {/* Tab 3: Court Fees & Costs Module */}
         {activeTab === 'court_costs' && (
           <CourtCostsModule
             grandTotalClaim={summary.grandTotalClaim}
