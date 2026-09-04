@@ -404,7 +404,7 @@ export const DEFAULT_COMPENSATIONS: CompensationItem[] = [
   {
     id: 'comp-1',
     title: 'Manevi Tazminat Talebi',
-    enabled: true,
+    enabled: false,
     basis: 'multiple_of_gross',
     multiplier: 6,
     fixedAmount: 425413.38,
