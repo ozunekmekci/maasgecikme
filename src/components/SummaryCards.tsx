@@ -38,7 +38,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({
             {formatTL(summary.totalWagePrincipalUnpaid)}
           </div>
           <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-            11 Aylık Net Maaş Anapara Alacağı
+            Ödenmeyen Net Maaş Anapara Alacağı
           </p>
         </div>
       </div>

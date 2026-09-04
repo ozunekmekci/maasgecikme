@@ -119,7 +119,7 @@ export const CourtReportView: React.FC<CourtReportViewProps> = ({
                   <td className="p-1.5 border border-slate-300 text-center">-</td>
                   <td className="p-1.5 border border-slate-300 text-right">{formatTL(summary.totalWageInterest, false)}</td>
                   <td className="p-1.5 border border-slate-300 text-right font-black">{formatTL(summary.totalWageClaims, false)}</td>
-                  <td className="p-1.5 border border-slate-300 text-[10px]">11 Ay Maaş + Ağustos Faiz Farkı</td>
+                  <td className="p-1.5 border border-slate-300 text-[10px]">Ödenmeyen Maaşlar + Ağustos 2025 Faiz Farkı</td>
                 </tr>
               </tbody>
             </table>

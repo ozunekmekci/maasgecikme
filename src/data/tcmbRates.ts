@@ -94,6 +94,13 @@ export const TCMB_HISTORICAL_DEPOSIT_RATES: Record<string, TcmbMonthlyRate> = {
     periodName: 'Temmuz 2026',
     rate: 45.00,
     source: 'TCMB 1-3 Aylık TL Mevduat Ortalaması (Temmuz 2026)'
+  },
+  '2026-08': {
+    month: 8,
+    year: 2026,
+    periodName: 'Ağustos 2026',
+    rate: 44.50,
+    source: 'TCMB 1-3 Aylık TL Mevduat Ortalaması (Ağustos 2026)'
   }
 };
 

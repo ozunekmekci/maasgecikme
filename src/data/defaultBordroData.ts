@@ -337,6 +337,34 @@ export const DEFAULT_RAW_PAYROLLS: RawPayrollRecord[] = [
     totalNetEarnings: 68102.91,
     totalDeductions: 22946.65,
     workDays: 30
+  },
+  {
+    id: 'pay-2026-08',
+    filename: '2026 AĞUSTOS.pdf',
+    period: 'Ağustos 2026',
+    month: 8,
+    year: 2026,
+    employeeName: '[GİZLİ DAVACI / İŞÇİ]',
+    companyName: '[GİZLİ DAVALI İŞVEREN A.Ş.]',
+    jobTitle: 'BİYOMEDİKAL MÜHENDİSİ',
+    startDate: '04.08.2025',
+    grossSalary: 70902.23,
+    netSalary: 58142.49,
+    foodAllowanceGross: 10411.55,
+    foodAllowanceNet: 8820.00,
+    sgkWorkerDeduction: 10501.93,
+    sgkUnemploymentDeduction: 750.14,
+    sgkEmployerDeduction: 16315.50,
+    sgkMatrah: 75013.78,
+    incomeTaxMatrah: 63761.71,
+    incomeTaxAmount: 11600.56,
+    stampTaxAmount: 318.66,
+    besDeduction: 0,
+    otherDeductions: 0,
+    totalGrossEarnings: 81313.78,
+    totalNetEarnings: 58142.49,
+    totalDeductions: 23171.29,
+    workDays: 30
   }
 ];
 
@@ -348,15 +376,15 @@ export const DEFAULT_SEVERANCE: SeveranceClaim = {
   startDate: '2025-08-04',
   terminationDate: getTurkeyDateString(),
   serviceYears: 1,
-  serviceDays: 24,
+  serviceDays: 32,
   baseGross: 70902.23,
-  fringeGross: 10907.33,
-  clothedGross: 81809.56,
+  fringeGross: 10411.55,
+  clothedGross: 81313.78,
   severanceCap: 99999999, // limit üstü değilse giydirilmiş brüt
-  grossSeverance: 87188.81,
-  stampTax: 661.75,
-  netSeverance: 86527.06,
-  note: 'Giydirilmiş brüt 81.809,56 TL / Net tutar (1 Yıl 24 Gün)'
+  grossSeverance: 88442.66,
+  stampTax: 671.28,
+  netSeverance: 87771.38,
+  note: 'Giydirilmiş brüt 81.313,78 TL / Net tutar (1 Yıl 32 Gün)'
 };
 
 export const DEFAULT_ANNUAL_LEAVE: AnnualLeaveClaim = {

@@ -535,7 +535,7 @@ export const InterestTable: React.FC<InterestTableProps> = ({
                   {formatTL(summary.totalWageClaims, false)}
                 </td>
                 <td className="p-2.5 border border-slate-300 dark:border-slate-700 text-[11px] text-slate-600 dark:text-slate-400" colSpan={2}>
-                  11 Ay Maaş + Ağustos Faiz Farkı
+                  Ödenmeyen Maaşlar + Ağustos 2025 Faiz Farkı
                 </td>
               </tr>
 
