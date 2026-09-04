@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'interest' | 'mediation' | 'court_costs' | 'analytics' | 'report';
-  setActiveTab: (tab: 'interest' | 'mediation' | 'court_costs' | 'analytics' | 'report') => void;
+  activeTab: 'interest' | 'mediation' | 'mediation_document' | 'court_costs' | 'analytics' | 'report';
+  setActiveTab: (tab: 'interest' | 'mediation' | 'mediation_document' | 'court_costs' | 'analytics' | 'report') => void;
   darkMode: boolean;
   setDarkMode: (val: boolean | ((prev: boolean) => boolean)) => void;
   onResetToDefaults: () => void;
@@ -74,6 +74,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <span className="font-serif">🤝</span>
               <span>Arabuluculuk & 8 Taksit</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('mediation_document')}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-bold transition-all whitespace-nowrap ${
+                activeTab === 'mediation_document'
+                  ? 'bg-blue-800 text-white dark:bg-blue-600 dark:text-white shadow-sm ring-2 ring-blue-500/50'
+                  : 'text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>📄 Arabuluculuk Belgesi</span>
             </button>
 
             <button
@@ -154,6 +166,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             <span>🤝 8 Taksit</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('mediation_document')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap transition ${
+              activeTab === 'mediation_document' ? 'bg-blue-800 text-white dark:bg-blue-600 dark:text-white' : 'text-blue-700 dark:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>📄 Anlaşma Belgesi</span>
           </button>
 
           <button
