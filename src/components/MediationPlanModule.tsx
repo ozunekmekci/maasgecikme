@@ -81,16 +81,16 @@ export const MediationPlanModule: React.FC<MediationPlanModuleProps> = ({
   const totalFirst7 = first7MonthsPayment * 7;
   const eighthInstallment = Math.max(0, currentTotal - totalFirst7);
 
-  // Installment Dates (End of each month from October 2026 to May 2027)
+  // Installment Dates (1st of each month from October 2026 to May 2027)
   const installmentDates = [
-    { no: 1, date: '31.10.2026', monthName: 'Ekim 2026 Sonu' },
-    { no: 2, date: '30.11.2026', monthName: 'Kasım 2026 Sonu' },
-    { no: 3, date: '31.12.2026', monthName: 'Aralık 2026 Sonu' },
-    { no: 4, date: '31.01.2027', monthName: 'Ocak 2027 Sonu' },
-    { no: 5, date: '28.02.2027', monthName: 'Şubat 2027 Sonu' },
-    { no: 6, date: '31.03.2027', monthName: 'Mart 2027 Sonu' },
-    { no: 7, date: '30.04.2027', monthName: 'Nisan 2027 Sonu' },
-    { no: 8, date: '31.05.2027', monthName: 'Mayıs 2027 Sonu (Kapanış)' },
+    { no: 1, date: '01.10.2026', monthName: 'Ekim 2026 Başı' },
+    { no: 2, date: '01.11.2026', monthName: 'Kasım 2026 Başı' },
+    { no: 3, date: '01.12.2026', monthName: 'Aralık 2026 Başı' },
+    { no: 4, date: '01.01.2027', monthName: 'Ocak 2027 Başı' },
+    { no: 5, date: '01.02.2027', monthName: 'Şubat 2027 Başı' },
+    { no: 6, date: '01.03.2027', monthName: 'Mart 2027 Başı' },
+    { no: 7, date: '01.04.2027', monthName: 'Nisan 2027 Başı' },
+    { no: 8, date: '01.05.2027', monthName: 'Mayıs 2027 Başı (Kapanış)' },
   ];
 
   // Agreement Legal Text for copy
@@ -101,16 +101,16 @@ export const MediationPlanModule: React.FC<MediationPlanModuleProps> = ({
       : 'Seçenek 2.B (TCMB Kademeli Faizli Maaşlar + Kıdem + İzin)';
 
   const mediationClauseText = `ARABULUCULUK ÖDEME VE ANLAŞMA PROTOKOLÜ ŞARTI:
-İşbu anlaşma gereğince işveren, işçinin manevi tazminat talebi haricindeki tüm ücret, gecikme faizleri, kıdem tazminatı ve yıllık izin alacaklarına mahsuben toplam ${formatTL(currentTotal)} tutarındaki borcu aşağıda belirtilen 8 (sekiz) eşit/kademeli taksit halinde işçinin banka hesabına ödemeyi gayrikabili rücu kabul, beyan ve taahhüt eder:
+İşbu anlaşma gereğince işveren; işçinin ödenmeyen ücret alacakları (yemek yardımı dahil), gecikme faizi farkları, kıdem tazminatı ve yıllık izin alacaklarına mahsuben toplam ${formatTL(currentTotal)} tutarındaki borcu, işçinin QNB nezdindeki TR46 0011 1000 0000 0158 5692 66 IBAN numaralı maaş hesabına aşağıda belirtilen 8 (sekiz) taksit halinde nakden ve defaten ödemeyi gayrikabili rücu kabul, beyan ve taahhüt eder:
 
-1. Taksit: 31.10.2026 tarihinde ${formatTL(first7MonthsPayment)}
-2. Taksit: 30.11.2026 tarihinde ${formatTL(first7MonthsPayment)}
-3. Taksit: 31.12.2026 tarihinde ${formatTL(first7MonthsPayment)}
-4. Taksit: 31.01.2027 tarihinde ${formatTL(first7MonthsPayment)}
-5. Taksit: 28.02.2027 tarihinde ${formatTL(first7MonthsPayment)}
-6. Taksit: 31.03.2027 tarihinde ${formatTL(first7MonthsPayment)}
-7. Taksit: 30.04.2027 tarihinde ${formatTL(first7MonthsPayment)}
-8. Taksit (Bakiye Kalan): 31.05.2027 tarihinde ${formatTL(eighthInstallment)}
+1. Taksit: 01.10.2026 tarihinde ${formatTL(first7MonthsPayment)}
+2. Taksit: 01.11.2026 tarihinde ${formatTL(first7MonthsPayment)}
+3. Taksit: 01.12.2026 tarihinde ${formatTL(first7MonthsPayment)}
+4. Taksit: 01.01.2027 tarihinde ${formatTL(first7MonthsPayment)}
+5. Taksit: 01.02.2027 tarihinde ${formatTL(first7MonthsPayment)}
+6. Taksit: 01.03.2027 tarihinde ${formatTL(first7MonthsPayment)}
+7. Taksit: 01.04.2027 tarihinde ${formatTL(first7MonthsPayment)}
+8. Taksit (Bakiye Kalan): 01.05.2027 tarihinde ${formatTL(eighthInstallment)}
 
 MUACCELİYET VE CEZAİ ŞART:
 Taksitlerden herhangi birinin vadesinde tam ve eksiksiz olarak ödenmemesi halinde, kalan tüm taksitler muaccel hale gelecek ve borcun tamamına 4857 sayılı İş Kanunu m.34 uyarınca bankalarca mevduata uygulanan en yüksek faiz işletilecektir.`;
