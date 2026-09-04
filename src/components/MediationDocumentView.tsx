@@ -28,6 +28,12 @@ interface MediationDocumentViewProps {
   globalInterestRate: number;
 }
 
+// Protocol Types:
+// 'tcmb_interest' -> Yasal Mevduat Faizli (TCMB Kademeli)
+// 'fixed_interest' -> Yasal Mevduat Faizli (Sabit %48)
+// 'principal_only' -> Net Hak Edişler (Maaş + Kıdem + Yıllık İzin)
+type ProtocolType = 'tcmb_interest' | 'fixed_interest' | 'principal_only';
+
 export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
   rows,
   summary,
@@ -35,8 +41,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
   annualLeave,
   globalInterestRate
 }) => {
-  // Option: 'option1' (Taban / Faizsiz) | 'option2_fixed' (Tam Paket - %48 Faiz) | 'option2_tcmb' (Tam Paket - TCMB Kademeli)
-  const [selectedOption, setSelectedOption] = useState<'option2_tcmb' | 'option2_fixed' | 'option1'>('option2_tcmb');
+  const [selectedProtocol, setSelectedProtocol] = useState<ProtocolType>('tcmb_interest');
   const [isPrivacyMode, setIsPrivacyMode] = useState<boolean>(false);
   const [fontFamily, setFontFamily] = useState<'font-serif' | 'font-sans'>('font-serif');
   const [copied, setCopied] = useState<boolean>(false);
@@ -54,7 +59,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
   const employerAddress = isPrivacyMode ? '[GİZLİ ŞİRKET MERKEZ ADRESİ]' : 'Saray Mah. Dr. Adnan Büyükdeniz Cad. Akkom Ofis Park 2. Blok No: 4/19 Ümraniye / İSTANBUL';
   const employerCeo = isPrivacyMode ? '[GİZLİ YÖNETİM KURULU BAŞKANI]' : 'Onur ARSLANOĞLU';
 
-  // Dynamic Calculations (Only: Maaşlar + Faiz + Kıdem + İzin)
+  // Base Dynamic Calculations
   const wagePrincipal = summary.totalWagePrincipalUnpaid;
   const severanceNet = severance.enabled ? severance.netSeverance : 0;
   const leaveNet = annualLeave.enabled ? annualLeave.netAmount : 0;
@@ -63,9 +68,10 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
   const aug2025Row = rows.find(r => r.month === 8 && r.year === 2025);
   const aug2025Interest = aug2025Row ? aug2025Row.accruedInterest : 8358.09;
 
-  // Total Interest: Fixed %48 vs TCMB
+  // Fixed %48 Interest Total
   const fixedInterestTotal = summary.totalWageInterest;
-  
+
+  // TCMB Gradual Interest Total
   const tcmbInterestTotal = rows.reduce((sum, r) => {
     const tRate = getTcmbRateForMonthYear(r.month, r.year);
     const accrued = r.status === 'unpaid' 
@@ -76,45 +82,37 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
     return sum + accrued;
   }, 0);
 
-  // Totals for Packages (Strictly: Maaşlar + Faiz + Kıdem + İzin)
-  // Seçenek I: Faizsiz Taban Paket (A + C + D)
-  const option1Total = wagePrincipal + severanceNet + leaveNet;
+  // Active Protocol Determinations
+  const hasInterest = selectedProtocol !== 'principal_only';
+  const activeInterest = selectedProtocol === 'tcmb_interest' 
+    ? tcmbInterestTotal 
+    : selectedProtocol === 'fixed_interest' 
+      ? fixedInterestTotal 
+      : 0;
 
-  // Seçenek II.A: Tam Paket - %48 Faiz (A + B_sabit + C + D)
-  const option2FixedTotal = wagePrincipal + fixedInterestTotal + severanceNet + leaveNet;
+  const totalSettlementAmount = selectedProtocol === 'tcmb_interest'
+    ? (wagePrincipal + tcmbInterestTotal + severanceNet + leaveNet)
+    : selectedProtocol === 'fixed_interest'
+      ? (wagePrincipal + fixedInterestTotal + severanceNet + leaveNet)
+      : (wagePrincipal + severanceNet + leaveNet);
 
-  // Seçenek II.B: Tam Paket - TCMB Faiz (A + B_tcmb + C + D)
-  const option2TcmbTotal = wagePrincipal + tcmbInterestTotal + severanceNet + leaveNet;
+  // Installment Rules (First 7 months fixed round amount, 8th month remaining balance)
+  const first7MonthlyAmount = hasInterest ? 120000 : 100000;
+  const eighthMonthlyAmount = Math.max(0, totalSettlementAmount - (first7MonthlyAmount * 7));
 
-  // Current Active Package Total
-  const activePackageTotal = selectedOption === 'option1'
-    ? option1Total
-    : selectedOption === 'option2_fixed'
-      ? option2FixedTotal
-      : option2TcmbTotal;
-
-  // Installment Calculations (1st of each month)
-  const first7Payment = selectedOption === 'option1' ? 100000 : 120000;
-  const eighthPayment = Math.max(0, activePackageTotal - (first7Payment * 7));
-
-  // 8 Installments Schedule (1st of each month starting 01 October 2026)
+  // 8 Installments Schedule (01 October 2026 to 01 May 2027)
   const installmentDates = [
-    { no: 1, date: '01 Ekim 2026', opt1: 100000, opt2: 120000 },
-    { no: 2, date: '01 Kasım 2026', opt1: 100000, opt2: 120000 },
-    { no: 3, date: '01 Aralık 2026', opt1: 100000, opt2: 120000 },
-    { no: 4, date: '01 Ocak 2027', opt1: 100000, opt2: 120000 },
-    { no: 5, date: '01 Şubat 2027', opt1: 100000, opt2: 120000 },
-    { no: 6, date: '01 Mart 2027', opt1: 100000, opt2: 120000 },
-    { no: 7, date: '01 Nisan 2027', opt1: 100000, opt2: 120000 },
-    { 
-      no: 8, 
-      date: '01 Mayıs 2027', 
-      opt1: Math.max(0, option1Total - 700000), 
-      opt2: Math.max(0, (selectedOption === 'option2_fixed' ? option2FixedTotal : option2TcmbTotal) - 840000) 
-    },
+    { no: 1, date: '01 Ekim 2026', monthLabel: '1. Taksit' },
+    { no: 2, date: '01 Kasım 2026', monthLabel: '2. Taksit' },
+    { no: 3, date: '01 Aralık 2026', monthLabel: '3. Taksit' },
+    { no: 4, date: '01 Ocak 2027', monthLabel: '4. Taksit' },
+    { no: 5, date: '01 Şubat 2027', monthLabel: '5. Taksit' },
+    { no: 6, date: '01 Mart 2027', monthLabel: '6. Taksit' },
+    { no: 7, date: '01 Nisan 2027', monthLabel: '7. Taksit' },
+    { no: 8, date: '01 Mayıs 2027', monthLabel: '8. Taksit (Son Kapanış)' },
   ];
 
-  // Copy Entire Text
+  // Copy Entire Clean Text
   const handleCopyText = () => {
     const el = document.getElementById('word-document-content');
     if (!el) return;
@@ -154,7 +152,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Arabuluculuk_Anlasma_Belgesi_${selectedOption}.doc`;
+    a.download = `Arabuluculuk_Anlasma_Belgesi_${selectedProtocol}.doc`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -162,16 +160,16 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
   return (
     <div className="space-y-6 font-sans">
       
-      {/* 1. Office / Word Top Control Bar (Screen Only) */}
+      {/* 1. Office / Word Top Control Bar (Screen Only - Hidden on Print) */}
       <div className="print:hidden bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-300 dark:border-slate-700 shadow-sm space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
           <div>
             <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-slate-900 dark:text-white font-serif flex items-center space-x-2">
               <FileText className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>ARABULUCULUK ANLAŞMA BELGESİ VE ÖDEME PROTOKOLÜ (WORD STİLİ)</span>
+              <span>ARABULUCULUK ANLAŞMA BELGESİ VE ÖDEME PROTOKOLÜ (WORD FORMATI)</span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              1 Ekim başlangıçlı 8 taksit takvimi, haklı fesih/zulüm maddesi ve yemek yardımı dahil net hakediş dökümü
+              Belge, seçtiğiniz protokole göre tekil ve nihai bir anlaşma metni olarak üretilir; karşı taraf alternatifleri görmez.
             </p>
           </div>
 
@@ -228,48 +226,50 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
           </div>
         </div>
 
-        {/* Option Selector Pill Bar */}
+        {/* Protocol Selector Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
           <div className="flex items-center space-x-2">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Protokolde Geçerli Paket:</span>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              Belgeye Yansıtılacak Protokol Türü:
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setSelectedOption('option1')}
+              onClick={() => setSelectedProtocol('tcmb_interest')}
               className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1.5 ${
-                selectedOption === 'option1'
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm ring-2 ring-slate-800'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700'
-              }`}
-            >
-              <span>Seçenek I: Taban Paket (Faizsiz)</span>
-              <span className="font-mono text-[11px]">({formatTL(option1Total)})</span>
-            </button>
-
-            <button
-              onClick={() => setSelectedOption('option2_fixed')}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1.5 ${
-                selectedOption === 'option2_fixed'
-                  ? 'bg-rose-700 text-white shadow-sm ring-2 ring-rose-500'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700'
-              }`}
-            >
-              <span>Seçenek II.A: %48 Faizli Tam Paket</span>
-              <span className="font-mono text-[11px]">({formatTL(option2FixedTotal)})</span>
-            </button>
-
-            <button
-              onClick={() => setSelectedOption('option2_tcmb')}
-              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1.5 ${
-                selectedOption === 'option2_tcmb'
+                selectedProtocol === 'tcmb_interest'
                   ? 'bg-indigo-700 text-white shadow-sm ring-2 ring-indigo-500'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Seçenek II.B: TCMB Kademeli Tam Paket</span>
-              <span className="font-mono text-[11px]">({formatTL(option2TcmbTotal)})</span>
+              <span>TCMB Mevduat Faizli Protokol</span>
+              <span className="font-mono text-[11px]">({formatTL(wagePrincipal + tcmbInterestTotal + severanceNet + leaveNet)})</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedProtocol('fixed_interest')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1.5 ${
+                selectedProtocol === 'fixed_interest'
+                  ? 'bg-rose-700 text-white shadow-sm ring-2 ring-rose-500'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700'
+              }`}
+            >
+              <span>Sabit %{globalInterestRate} Faizli Protokol</span>
+              <span className="font-mono text-[11px]">({formatTL(wagePrincipal + fixedInterestTotal + severanceNet + leaveNet)})</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedProtocol('principal_only')}
+              className={`px-3 py-1.5 rounded text-xs font-bold transition flex items-center space-x-1.5 ${
+                selectedProtocol === 'principal_only'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm ring-2 ring-slate-800'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 border border-slate-300 dark:border-slate-700'
+              }`}
+            >
+              <span>Net Hak Edişler Protokolü (Faizsiz)</span>
+              <span className="font-mono text-[11px]">({formatTL(wagePrincipal + severanceNet + leaveNet)})</span>
             </button>
           </div>
         </div>
@@ -300,7 +300,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
             <p><strong>Başvuran (İşçi):</strong> {workerName} (T.C. Kimlik No: {workerTc})</p>
             <p><strong>Karşı Taraf (İşveren):</strong> {employerName} (Vergi No: {employerTaxNo})</p>
             <p><strong>Görevi / Hizmet Süresi:</strong> BİYOMEDİKAL MÜHENDİSİ (Müşteri Yöneticisi / Account Manager) / 04.08.2025 – {formatDateTR(severance.terminationDate)} ({severance.serviceYears} Yıl {severance.serviceDays} Gün)</p>
-            <p><strong>Uyuşmazlık Konusu:</strong> Ödenmeyen 12 aylık resmi bordro net ücret alacakları (nakdi yemek yardımı dahil), 4857 sayılı İş Kanunu m. 34 uyarınca mevduat gecikme faizi farkı, kıdem tazminatı ve kullanılmayan yıllık izin ücreti alacaklarının tasfiyesi.</p>
+            <p><strong>Uyuşmazlık Konusu:</strong> Ödenmeyen 12 aylık resmi bordro net ücret alacakları (nakdi yemek yardımı dahil){hasInterest ? ', 4857 sayılı İş Kanunu m. 34 uyarınca mevduat gecikme faizi farkı' : ''}, kıdem tazminatı ve kullanılmayan yıllık izin ücreti alacaklarının sulhen tasfiyesi.</p>
           </div>
 
           <hr className="border-slate-300 my-4" />
@@ -312,7 +312,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
             </h3>
             
             <p className="text-xs text-slate-700">
-              Resmi bordro sistemi (PozitifSmart) ve yasal mevzuat uyarınca tahakkuk eden hak ediş dökümü aşağıdadır:
+              Resmi bordro sistemi (PozitifSmart) ve yasal mevzuat uyarınca kesinleşen hak ediş dökümü aşağıdadır:
             </p>
 
             {/* A. 13 Aylık Net Maaş Dökümü Tablosu */}
@@ -335,7 +335,9 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
                     <td className="p-1.5 border border-slate-300 text-right font-mono font-bold">47.003,29 TL</td>
                     <td className="p-1.5 border border-slate-300 text-center font-mono">05.09.2025</td>
                     <td className="p-1.5 border border-slate-300 text-[11px] text-slate-700">
-                      05.01.2026'da (4 ay gecikmeyle) ödendi. Yalnızca <strong>{formatTL(aug2025Interest)}</strong> mevduat faiz farkı talep edilmektedir.
+                      {hasInterest 
+                        ? `05.01.2026'da (4 ay gecikmeyle) ödendi. Yalnızca ${formatTL(aug2025Interest)} mevduat faiz farkı talep edilmektedir.`
+                        : "05.01.2026'da (4 ay gecikmeyle) ödenmiştir."}
                     </td>
                   </tr>
 
@@ -358,16 +360,16 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
             {/* Hukuki Açıklama Notu: Yemek Yardımı ve Netlik */}
             <div className="p-2.5 bg-slate-50 rounded border border-slate-300 text-[11px] text-slate-700 space-y-1">
               <p>
-                <strong>Hukuki Bilgilendirme ve Dayanak:</strong> Resmi bordrolarda yer alan <em>"Net Ödeme / Toplam Hak Edilen Ücret"</em> hanesi; çıplak net çalışma ücreti ile nakdi yemek yardımının netini (aylık 8.400 TL – 9.240 TL) birlikte ihtiva etmektedir. Bu sebeple talep edilen net maaş hakedişlerine nakdi yemek yardımı tam olarak dahildir. Ayrıca 1475 sayılı Kanun m. 14 uyarınca yemek yardımı kıdem tazminatı hesabında da giydirilmiş brüt ücrete yasal olarak eklenmiştir.
+                <strong>Hukuki Açıklama ve Dayanak:</strong> Resmi bordrolarda yer alan <em>"Net Ödeme / Toplam Hak Edilen Ücret"</em> hanesi; çıplak net çalışma ücreti ile nakdi yemek yardımının netini (aylık 8.400 TL – 9.240 TL) birlikte ihtiva etmektedir. Bu sebeple talep edilen net maaş hakedişlerine nakdi yemek yardımı tam olarak dahildir. Ayrıca 1475 sayılı Kanun m. 14 uyarınca yemek yardımı kıdem tazminatı hesabında da giydirilmiş brüt ücrete yasal olarak eklenmiştir.
               </p>
             </div>
 
-            {/* B. Dava ve Tasfiye İcmal Tablosu (Sade ve Net) */}
+            {/* B. Dava ve Tasfiye İcmal Tablosu (TEKİL VE NİHAİ GÖRÜNÜM) */}
             <div className="overflow-x-auto pt-1">
               <table className="w-full text-left text-xs border-collapse border border-slate-400">
                 <thead>
                   <tr className="bg-slate-100 font-bold border-b border-slate-400 text-[11px] uppercase">
-                    <th className="p-2 border border-slate-300 text-center w-10">Kod</th>
+                    <th className="p-2 border border-slate-300 text-center w-10">Sıra</th>
                     <th className="p-2 border border-slate-300">Alacak Kalemi</th>
                     <th className="p-2 border border-slate-300 text-center">Yasal Dayanak</th>
                     <th className="p-2 border border-slate-300 text-right">Hesaplanan Net Tutar</th>
@@ -376,27 +378,32 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
                 </thead>
                 <tbody>
                   <tr className="border-b border-slate-200">
-                    <td className="p-2 border border-slate-300 text-center font-black">A</td>
+                    <td className="p-2 border border-slate-300 text-center font-black">1</td>
                     <td className="p-2 border border-slate-300 font-bold">12 Aylık Ödenmeyen Net Maaşlar</td>
                     <td className="p-2 border border-slate-300 text-center font-mono">4857 s.K. m. 32, 34</td>
                     <td className="p-2 border border-slate-300 text-right font-mono font-black text-sm">{formatTL(wagePrincipal)}</td>
                     <td className="p-2 border border-slate-300 text-[11px]">Bordrolu net ücret alacakları (yemek yardımı dahil)</td>
                   </tr>
 
-                  <tr className="border-b border-slate-200">
-                    <td className="p-2 border border-slate-300 text-center font-black">B</td>
-                    <td className="p-2 border border-slate-300 font-bold">Mevduat Gecikme Faizi Farkı</td>
-                    <td className="p-2 border border-slate-300 text-center font-mono">4857 s.K. m. 34</td>
-                    <td className="p-2 border border-slate-300 text-right font-mono font-black text-sm text-rose-700">
-                      {formatTL(selectedOption === 'option2_fixed' ? fixedInterestTotal : tcmbInterestTotal)}
-                    </td>
-                    <td className="p-2 border border-slate-300 text-[11px]">
-                      {selectedOption === 'option2_fixed' ? `Sabit %${globalInterestRate} mevduat faizi` : 'Resmi TCMB ağırlıklı ortalama mevduat faizleri'} (Ağustos gecikme faizi dahil)
-                    </td>
-                  </tr>
+                  {/* Sadece faizli protokol seçildiyse faiz satırı gösterilir, faizsizde tamamen gizlenir */}
+                  {hasInterest && (
+                    <tr className="border-b border-slate-200">
+                      <td className="p-2 border border-slate-300 text-center font-black">2</td>
+                      <td className="p-2 border border-slate-300 font-bold">Mevduat Gecikme Faizi Farkı</td>
+                      <td className="p-2 border border-slate-300 text-center font-mono">4857 s.K. m. 34</td>
+                      <td className="p-2 border border-slate-300 text-right font-mono font-black text-sm text-rose-700">
+                        {formatTL(activeInterest)}
+                      </td>
+                      <td className="p-2 border border-slate-300 text-[11px]">
+                        {selectedProtocol === 'fixed_interest' 
+                          ? `Yıllık %${globalInterestRate} en yüksek mevduat faizi` 
+                          : 'TCMB 1-3 aylık resmi ağırlıklı ortalama mevduat faizleri'} (Ağustos gecikme faizi dahil)
+                      </td>
+                    </tr>
+                  )}
 
                   <tr className="border-b border-slate-200">
-                    <td className="p-2 border border-slate-300 text-center font-black">C</td>
+                    <td className="p-2 border border-slate-300 text-center font-black">{hasInterest ? 3 : 2}</td>
                     <td className="p-2 border border-slate-300 font-bold">Net Kıdem Tazminatı ({severance.serviceYears} Yıl {severance.serviceDays} Gün)</td>
                     <td className="p-2 border border-slate-300 text-center font-mono">1475 s.K. m. 14</td>
                     <td className="p-2 border border-slate-300 text-right font-mono font-black text-sm text-indigo-700">{formatTL(severanceNet)}</td>
@@ -406,7 +413,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
                   </tr>
 
                   <tr className="border-b border-slate-200">
-                    <td className="p-2 border border-slate-300 text-center font-black">D</td>
+                    <td className="p-2 border border-slate-300 text-center font-black">{hasInterest ? 4 : 3}</td>
                     <td className="p-2 border border-slate-300 font-bold">Kullanılmayan Yıllık İzin Ücreti (14 Gün)</td>
                     <td className="p-2 border border-slate-300 text-center font-mono">4857 s.K. m. 59</td>
                     <td className="p-2 border border-slate-300 text-right font-mono font-black text-sm text-emerald-700">{formatTL(leaveNet)}</td>
@@ -415,31 +422,16 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
                     </td>
                   </tr>
 
-                  {/* PACKAGE I TOTAL */}
-                  <tr className={`border-t-2 border-slate-900 ${selectedOption === 'option1' ? 'bg-amber-100 font-black' : 'bg-slate-100 font-bold'}`}>
-                    <td className="p-2 border border-slate-400 text-center font-black">I</td>
-                    <td className="p-2 border border-slate-400" colSpan={2}>
-                      SEÇENEK I: ASGARİ TABAN TASFİYE PAKETİ (A+C+D)
+                  {/* NİHAİ TOPLAM SATIRI (Hiçbir seçenek/opsiyon ibaresi yer almaz) */}
+                  <tr className="border-t-2 border-slate-900 bg-slate-100 font-black text-xs">
+                    <td className="p-2.5 border border-slate-400 text-center font-black" colSpan={3}>
+                      TOPLAM ANLAŞMA VE TASFİYE BEDELİ
                     </td>
-                    <td className="p-2 border border-slate-400 text-right font-mono font-black text-sm">
-                      {formatTL(option1Total)}
+                    <td className="p-2.5 border border-slate-400 text-right font-mono font-black text-base text-slate-950">
+                      {formatTL(totalSettlementAmount)} NET
                     </td>
-                    <td className="p-2 border border-slate-400 text-[11px]">
-                      Faizsiz taban uzlaşma bedeli (Maaşlar + Kıdem + Yıllık İzin)
-                    </td>
-                  </tr>
-
-                  {/* PACKAGE II TOTAL */}
-                  <tr className={`border-t-2 border-slate-900 ${selectedOption !== 'option1' ? 'bg-emerald-100 font-black' : 'bg-slate-100 font-bold'}`}>
-                    <td className="p-2 border border-slate-400 text-center font-black">II</td>
-                    <td className="p-2 border border-slate-400" colSpan={2}>
-                      SEÇENEK II: TAM HAK EDİŞ TASFİYE PAKETİ (A+B+C+D)
-                    </td>
-                    <td className="p-2 border border-slate-400 text-right font-mono font-black text-sm text-emerald-900">
-                      {formatTL(selectedOption === 'option2_fixed' ? option2FixedTotal : option2TcmbTotal)}
-                    </td>
-                    <td className="p-2 border border-slate-400 text-[11px]">
-                      Faizli maaşlar + mevduat faiz farkı + kıdem + yıllık izin
+                    <td className="p-2.5 border border-slate-400 text-[11px]">
+                      Tüm işçilik alacaklarına mahsuben net ödenecek nihai bedel
                     </td>
                   </tr>
                 </tbody>
@@ -449,63 +441,65 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
 
           <hr className="border-slate-300 my-4" />
 
-          {/* SECTION II: 8 TAKSİTLİ PROTOKOL VE ÖDEME TABLOSU */}
+          {/* SECTION II: 8 TAKSİTLİ PROTOKOL VE ÖDEME TABLOSU (TEKİL GÖRÜNÜM) */}
           <section className="space-y-3 mb-6">
             <h3 className="font-bold text-sm uppercase tracking-wide border-b border-slate-300 pb-1">
               II. 8 TAKSİTLİ PROTOKOL VE ÖDEME TABLOSU (1 EKİM BAŞLANGIÇLI)
             </h3>
             <p className="text-xs text-slate-700">
-              Aşağıdaki takvim, şirketin 8 aylık ödeme beyanına istinaden; <strong>01 Ekim 2026</strong> tarihi itibarıyla başlatılmış olup, her ayın 1'i vadeli, ilk 7 taksiti net yuvarlak tutarlı, bakiyesi ise 8. son aya yansıtılmış olarak düzenlenmiştir:
+              Şirketin 8 taksitli ödeme taahhüdü doğrultusunda belirlenen kesin ödeme takvimi aşağıdadır; ilk 7 taksiti net sabit tutarlı, bakiyesi ise 8. son taksite yansıtılmıştır:
             </p>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse border border-slate-400">
                 <thead>
                   <tr className="bg-slate-100 font-bold border-b border-slate-400 text-[11px] uppercase">
-                    <th className="p-1.5 border border-slate-300 text-center w-14">Taksit No</th>
-                    <th className="p-1.5 border border-slate-300">Kesin Vade Tarihi</th>
-                    <th className={`p-1.5 border border-slate-300 text-right ${selectedOption === 'option1' ? 'bg-amber-50 font-black' : ''}`}>
-                      Seçenek I: Taban Paket ({formatTL(option1Total)})
-                    </th>
-                    <th className={`p-1.5 border border-slate-300 text-right ${selectedOption !== 'option1' ? 'bg-emerald-50 font-black' : ''}`}>
-                      Seçenek II: Tam Paket ({formatTL(selectedOption === 'option2_fixed' ? option2FixedTotal : option2TcmbTotal)})
-                    </th>
-                    <th className="p-1.5 border border-slate-300 text-right">Kalan Bakiye (Seçilen Paket)</th>
+                    <th className="p-2 border border-slate-300 text-center w-14">Taksit No</th>
+                    <th className="p-2 border border-slate-300">Kesin Vade Tarihi</th>
+                    <th className="p-2 border border-slate-300">Dönem Açıklaması</th>
+                    <th className="p-2 border border-slate-300 text-right">Ödenecek Taksit Tutarı</th>
+                    <th className="p-2 border border-slate-300 text-right">Kalan Borç Bakiyesi</th>
+                    <th className="p-2 border border-slate-300 text-center">Ödeme Şekli</th>
                   </tr>
                 </thead>
                 <tbody>
                   {installmentDates.map((item) => {
-                    const activeAmount = selectedOption === 'option1' ? item.opt1 : item.opt2;
-                    const cumPaid = item.no < 8 ? (selectedOption === 'option1' ? 100000 * item.no : 120000 * item.no) : activePackageTotal;
-                    const remaining = Math.max(0, activePackageTotal - cumPaid);
+                    const isLast = item.no === 8;
+                    const installmentAmount = isLast ? eighthMonthlyAmount : first7MonthlyAmount;
+                    const cumPaid = item.no < 8 ? (first7MonthlyAmount * item.no) : totalSettlementAmount;
+                    const remaining = Math.max(0, totalSettlementAmount - cumPaid);
 
                     return (
-                      <tr key={item.no} className="border-b border-slate-200">
-                        <td className="p-1.5 border border-slate-300 text-center font-bold">{item.no}. Taksit</td>
-                        <td className="p-1.5 border border-slate-300 font-bold">{item.date}</td>
-                        <td className={`p-1.5 border border-slate-300 text-right font-mono ${selectedOption === 'option1' ? 'font-black text-slate-900 bg-amber-50/50' : ''}`}>
-                          {formatTL(item.opt1)}
+                      <tr key={item.no} className={`border-b border-slate-200 ${isLast ? 'bg-amber-50/50 font-bold' : ''}`}>
+                        <td className="p-2 border border-slate-300 text-center font-bold">{item.no}. Taksit</td>
+                        <td className="p-2 border border-slate-300 font-bold">{item.date}</td>
+                        <td className="p-2 border border-slate-300">
+                          <span>{item.monthLabel}</span>
+                          {isLast && <span className="text-[10px] text-amber-800 ml-1 font-bold">(Nihai Kapanış)</span>}
                         </td>
-                        <td className={`p-1.5 border border-slate-300 text-right font-mono ${selectedOption !== 'option1' ? 'font-black text-emerald-800 bg-emerald-50/50' : ''}`}>
-                          {formatTL(item.opt2)}
+                        <td className="p-2 border border-slate-300 text-right font-mono font-black text-sm text-slate-900">
+                          {formatTL(installmentAmount)}
                         </td>
-                        <td className="p-1.5 border border-slate-300 text-right font-mono text-slate-600">
+                        <td className="p-2 border border-slate-300 text-right font-mono text-slate-600">
                           {formatTL(remaining)}
+                        </td>
+                        <td className="p-2 border border-slate-300 text-center text-[11px] text-slate-700">
+                          Banka Havalesi
                         </td>
                       </tr>
                     );
                   })}
 
                   <tr className="bg-slate-100 font-black border-t-2 border-slate-800 text-xs">
-                    <td className="p-2 border border-slate-400 text-center" colSpan={2}>TOPLAM NET</td>
-                    <td className={`p-2 border border-slate-400 text-right font-mono ${selectedOption === 'option1' ? 'bg-amber-100 text-slate-950 font-black' : ''}`}>
-                      {formatTL(option1Total)} NET
+                    <td className="p-2.5 border border-slate-400 text-center" colSpan={3}>TOPLAM NET ÖDEME (8 TAKSİT TAMAMI)</td>
+                    <td className="p-2.5 border border-slate-400 text-right font-mono text-base text-slate-950 font-black">
+                      {formatTL(totalSettlementAmount)} NET
                     </td>
-                    <td className={`p-2 border border-slate-400 text-right font-mono ${selectedOption !== 'option1' ? 'bg-emerald-100 text-emerald-950 font-black' : ''}`}>
-                      {formatTL(selectedOption === 'option2_fixed' ? option2FixedTotal : option2TcmbTotal)} NET
-                    </td>
-                    <td className="p-2 border border-slate-400 text-right font-mono font-bold text-slate-900">
+                    <td className="p-2.5 border border-slate-400 text-right font-mono font-bold text-slate-700">
                       0,00 TL
+                    </td>
+                    <td className="p-2.5 border border-slate-400 text-center text-[11px] text-slate-800 font-bold">
+                      Borç Kapanır
                     </td>
                   </tr>
                 </tbody>
@@ -544,7 +538,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
             </div>
 
             <p className="pt-2">
-              <strong>UYUŞMAZLIK KONUSU:</strong> İş ilişkisinden doğan ödenmemiş aylık ücretler (nakdi yemek yardımı dahil), mevduat gecikme faizi farkı, kıdem tazminatı ve kullanılmayan yıllık izin ücreti alacaklarının sulhen tasfiyesi.
+              <strong>UYUŞMAZLIK KONUSU:</strong> İş ilişkisinden doğan ödenmemiş aylık ücretler (nakdi yemek yardımı dahil){hasInterest ? ', mevduat gecikme faizi farkı' : ''}, kıdem tazminatı ve kullanılmayan yıllık izin ücreti alacaklarının sulhen tasfiyesi.
             </p>
           </div>
 
@@ -566,7 +560,7 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
             <div>
               <p><strong>Madde 2: Anlaşmaya Varılan Net Tasfiye Bedeli</strong></p>
               <p>
-                Taraflar, yukarıda belirtilen tüm işçilik hak ve alacaklarına karşılık olmak üzere işverenin işçiye net <strong className="text-slate-950 font-black underline">{formatTL(activePackageTotal)}</strong> ödemesi hususunda tam olarak anlaşmışlardır. Bu tutara resmi bordrolarda tahakkuk etmiş olan nakdi yemek yardımı net hakedişleri tam olarak dahildir.
+                Taraflar, yukarıda belirtilen tüm işçilik hak ve alacaklarına karşılık olmak üzere işverenin işçiye net <strong className="text-slate-950 font-black underline">{formatTL(totalSettlementAmount)}</strong> ödemesi hususunda tam olarak anlaşmışlardır. Bu tutara resmi bordrolarda tahakkuk etmiş olan nakdi yemek yardımı net hakedişleri tam olarak dahildir.
               </p>
             </div>
 
@@ -578,14 +572,14 @@ export const MediationDocumentView: React.FC<MediationDocumentViewProps> = ({
               </p>
 
               <ul className="list-disc pl-6 space-y-1 font-mono text-xs font-semibold my-2">
-                <li>1. Taksit: 01 Ekim 2026 tarihinde {formatTL(first7Payment)}</li>
-                <li>2. Taksit: 01 Kasım 2026 tarihinde {formatTL(first7Payment)}</li>
-                <li>3. Taksit: 01 Aralık 2026 tarihinde {formatTL(first7Payment)}</li>
-                <li>4. Taksit: 01 Ocak 2027 tarihinde {formatTL(first7Payment)}</li>
-                <li>5. Taksit: 01 Şubat 2027 tarihinde {formatTL(first7Payment)}</li>
-                <li>6. Taksit: 01 Mart 2027 tarihinde {formatTL(first7Payment)}</li>
-                <li>7. Taksit: 01 Nisan 2027 tarihinde {formatTL(first7Payment)}</li>
-                <li>8. Taksit (Kalan Bakiye): 01 Mayıs 2027 tarihinde {formatTL(eighthPayment)}</li>
+                <li>1. Taksit: 01 Ekim 2026 tarihinde {formatTL(first7MonthlyAmount)}</li>
+                <li>2. Taksit: 01 Kasım 2026 tarihinde {formatTL(first7MonthlyAmount)}</li>
+                <li>3. Taksit: 01 Aralık 2026 tarihinde {formatTL(first7MonthlyAmount)}</li>
+                <li>4. Taksit: 01 Ocak 2027 tarihinde {formatTL(first7MonthlyAmount)}</li>
+                <li>5. Taksit: 01 Şubat 2027 tarihinde {formatTL(first7MonthlyAmount)}</li>
+                <li>6. Taksit: 01 Mart 2027 tarihinde {formatTL(first7MonthlyAmount)}</li>
+                <li>7. Taksit: 01 Nisan 2027 tarihinde {formatTL(first7MonthlyAmount)}</li>
+                <li>8. Taksit (Kalan Bakiye): 01 Mayıs 2027 tarihinde {formatTL(eighthMonthlyAmount)}</li>
               </ul>
             </div>
 
